@@ -1,0 +1,46 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ubuntu-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [nightly, stable]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install_dependencies
+        run: |
+          sudo apt-get update -y -qq
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+      - name: Build
+        run: |
+          cargo build
+  windows-latest:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [nightly, stable]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install_dependencies
+        run: |
+          vcpkg install sdl2
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+      - name: Build
+        run: |
+          cargo build
