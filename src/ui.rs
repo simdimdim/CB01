@@ -56,17 +56,15 @@ pub use self::content::*;
 
 #[derive(Debug)]
 pub struct App {
-    offset:   f32,
+    scroff:   f32,
     scroll:   scrollable::State,
     data:     AppData,
     settings: AppSettings,
-    state:    AppState,
 }
 impl App {
     fn new() -> Self {
         Self {
-            state:    Default::default(),
-            offset:   0f32,
+            scroff:   0f32,
             scroll:   scrollable::State::new(),
             data:     Default::default(),
             settings: Default::default(),
@@ -101,8 +99,7 @@ impl Application for App {
     ) -> Command<Message> {
         match self {
             App {
-                state,
-                offset,
+                scroff: offset,
                 scroll,
                 settings,
                 data,
@@ -208,7 +205,7 @@ impl Application for App {
                                     alt: false,
                                 },
                         }) => {
-                            *state = AppState::Library;
+                            settings.state = AppState::Library;
                         }
                         Keyboard(KeyPressed {
                             key_code: KeyCode::Numpad2,
@@ -220,7 +217,7 @@ impl Application for App {
                                     alt: false,
                                 },
                         }) => {
-                            *state = AppState::Reader;
+                            settings.state = AppState::Reader;
                         }
                         Keyboard(KeyPressed {
                             key_code: KeyCode::Numpad3,
@@ -232,7 +229,7 @@ impl Application for App {
                                     alt: false,
                                 },
                         }) => {
-                            *state = AppState::Settings;
+                            settings.state = AppState::Settings;
                         }
                         _ => {}
                     },
@@ -243,40 +240,54 @@ impl Application for App {
                         *offset = *off;
                     }
                     Message::SwitchToSettings => {
-                        *state = AppState::Settings;
+                        settings.state = AppState::Settings;
                     }
                     Message::SwitchToReader => {
-                        *state = AppState::Reader;
+                        settings.state = AppState::Reader;
                     }
                     Message::SwitchToLibrary => {
-                        *state = AppState::Library;
+                        settings.state = AppState::Library;
                     }
                     _ => (),
                 }
-                handle_settings(state, settings, &message);
+                handle_settings(settings, &message);
             }
         }
-
         Command::none()
     }
 
     fn view(&mut self) -> Element<Message> {
         match self {
             App {
-                state: AppState::Reader,
                 scroll,
                 data,
-                settings,
+                settings:
+                    settings
+                    @
+                    AppSettings {
+                        state: AppState::Reader,
+                        ..
+                    },
                 ..
             } => draw_reader(scroll, data, settings),
             App {
-                state: AppState::Library,
-                settings,
+                settings:
+                    settings
+                    @
+                    AppSettings {
+                        state: AppState::Library,
+                        ..
+                    },
                 ..
             } => draw_library(settings),
             App {
-                state: AppState::Settings,
-                settings,
+                settings:
+                    settings
+                    @
+                    AppSettings {
+                        state: AppState::Settings,
+                        ..
+                    },
                 ..
             } => draw_settings(settings),
         }
@@ -314,9 +325,7 @@ impl Application for App {
     }
 }
 
-fn handle_settings(
-    state: &mut AppState, settings: &mut AppSettings, _message: &Message,
-) {
+fn handle_settings(settings: &mut AppSettings, _message: &Message) {
     match _message {
         Message::EventOccurred(event) => match event {
             Window(Event::Resized { width, height }) => {
@@ -384,13 +393,13 @@ fn handle_settings(
         }
         Message::Scrolled(_) => {}
         Message::SwitchToSettings => {
-            *state = AppState::Settings;
+            settings.state = AppState::Settings;
         }
         Message::SwitchToReader => {
-            *state = AppState::Reader;
+            settings.state = AppState::Reader;
         }
         Message::SwitchToLibrary => {
-            *state = AppState::Library;
+            settings.state = AppState::Library;
         }
     };
 }
@@ -449,18 +458,18 @@ fn draw_reader<'a>(
     scroll: &'a mut scrollable::State, data: &mut AppData,
     settings: &mut AppSettings,
 ) -> Element<'a, Message> {
-    let re = &mut data.reversed;
+    let re = data.reversed;
     let cn = data
         .current
+        // TODO: skin n take, chunk
         .chunks_mut(settings.columns.max(1) as usize)
         .fold(
             Scrollable::<'a, Message>::new(scroll)
                 .align_items(Align::Center)
                 .on_scroll(move |off| Message::Scrolled(off)),
             |mut content, ch| {
-                if *re {
+                if re {
                     ch.reverse();
-                    *re = false;
                 }
                 content = content
                     .push(ch.into_iter().fold(
@@ -490,6 +499,9 @@ fn draw_reader<'a>(
                 content
             },
         );
+    if re {
+        data.reversed = !data.reversed;
+    }
     Container::new(cn)
         .width(Length::Fill)
         .height(Length::Fill)

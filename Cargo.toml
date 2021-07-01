@@ -17,6 +17,7 @@ chrono = { version = "0.4.19", features = ["serde"] }
 directories-next = "2.0.0"
 itertools = "0.10.1"
 rand = "0.8.4"
+# rayon = "1.5.1"
 
 serde = "1.0.126"
 

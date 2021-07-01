@@ -20,10 +20,12 @@ pub struct AppSettings {
     pub width:       u32,
     pub height:      u32,
     pub columns:     u16,
+    pub state:       AppState,
 }
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            state:       Default::default(),
             exitbtn:     Default::default(),
             fs_btn:      Default::default(),
             should_exit: Default::default(),
