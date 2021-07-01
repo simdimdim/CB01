@@ -3,7 +3,7 @@
 use std::cell::{Cell, RefCell};
 
 use self::{data::AppData, settings::AppSettings};
-use crate::APP_NAME;
+use crate::{settings::AppState, APP_NAME};
 use iced::{
     button,
     executor,
@@ -48,22 +48,24 @@ pub mod settings;
 
 pub use self::content::*;
 
+// #[derive(Debug)]
+// pub struct State {
+//     app:   App,
+//     state: AppState,
+// }
+
 #[derive(Debug)]
-pub enum App {
-    Settings {
-        data:     AppData,
-        settings: AppSettings,
-    },
-    Reader {
-        offset:   f32,
-        scroll:   scrollable::State,
-        data:     AppData,
-        settings: AppSettings,
-    },
+pub struct App {
+    offset:   f32,
+    scroll:   scrollable::State,
+    data:     AppData,
+    settings: AppSettings,
+    state:    AppState,
 }
 impl App {
     fn new() -> Self {
-        Self::Reader {
+        Self {
+            state:    Default::default(),
             offset:   0f32,
             scroll:   scrollable::State::new(),
             data:     Default::default(),
@@ -76,6 +78,9 @@ impl App {
 pub enum Message {
     EventOccurred(iced_native::Event),
     Scrolled(f32),
+    SwitchToSettings,
+    SwitchToReader,
+    SwitchToLibrary,
     FullscreenMode,
     Exit,
 }
@@ -95,10 +100,8 @@ impl Application for App {
         &mut self, message: Message, _clipboard: &mut Clipboard,
     ) -> Command<Message> {
         match self {
-            App::Settings { settings, .. } => {
-                handle_settings(settings, &message);
-            }
-            App::Reader {
+            App {
+                state,
                 offset,
                 scroll,
                 settings,
@@ -147,14 +150,41 @@ impl Application for App {
                             *offset = 1.;
                             scroll.snap_to(*offset);
                         }
+                        Keyboard(KeyPressed {
+                            key_code: KeyCode::Numpad1,
+                            ..
+                        }) => {
+                            *state = AppState::Library;
+                        }
+                        Keyboard(KeyPressed {
+                            key_code: KeyCode::Numpad2,
+                            ..
+                        }) => {
+                            *state = AppState::Reader;
+                        }
+                        Keyboard(KeyPressed {
+                            key_code: KeyCode::Numpad3,
+                            ..
+                        }) => {
+                            *state = AppState::Settings;
+                        }
                         _ => {}
                     },
                     Message::Scrolled(off) => {
                         *offset = *off;
                     }
-                    _ => {}
+                    Message::SwitchToSettings => {
+                        *state = AppState::Settings;
+                    }
+                    Message::SwitchToReader => {
+                        *state = AppState::Reader;
+                    }
+                    Message::SwitchToLibrary => {
+                        *state = AppState::Library;
+                    }
+                    _ => (),
                 }
-                handle_settings(settings, &message);
+                handle_settings(state, settings, &message);
             }
         }
 
@@ -163,13 +193,23 @@ impl Application for App {
 
     fn view(&mut self) -> Element<Message> {
         match self {
-            App::Settings { settings, .. } => draw_settings(settings),
-            App::Reader {
+            App {
+                state: AppState::Reader,
                 scroll,
                 data,
                 settings,
                 ..
             } => draw_reader(scroll, data, settings),
+            App {
+                state: AppState::Library,
+                settings,
+                ..
+            } => draw_library(settings),
+            App {
+                state: AppState::Settings,
+                settings,
+                ..
+            } => draw_settings(settings),
         }
     }
 
@@ -179,12 +219,10 @@ impl Application for App {
 
     fn mode(&self) -> window::Mode {
         match self {
-            Self::Settings { settings, .. } | App::Reader { settings, .. } => {
-                match settings.fullscreen {
-                    false => Windowed,
-                    true => Fullscreen,
-                }
-            }
+            App { settings, .. } => match settings.fullscreen {
+                false => Windowed,
+                true => Fullscreen,
+            },
         }
     }
 
@@ -196,23 +234,21 @@ impl Application for App {
             }
         }
         match self {
-            App::Settings { settings, .. } | App::Reader { settings, .. } => {
-                dark(settings.dark)
-            }
+            App { settings, .. } => dark(settings.dark),
         }
     }
 
     fn should_exit(&self) -> bool {
         match self {
-            App::Settings { settings, .. } | App::Reader { settings, .. } => {
-                settings.should_exit
-            }
+            App { settings, .. } => settings.should_exit,
         }
     }
 }
 
-fn handle_settings(settings: &mut AppSettings, message: &Message) {
-    match message {
+fn handle_settings(
+    state: &mut AppState, settings: &mut AppSettings, _message: &Message,
+) {
+    match _message {
         Message::EventOccurred(event) => match event {
             Window(Event::Resized { width, height }) => {
                 settings.width = *width;
@@ -254,6 +290,15 @@ fn handle_settings(settings: &mut AppSettings, message: &Message) {
             settings.should_exit = true;
         }
         Message::Scrolled(_) => {}
+        Message::SwitchToSettings => {
+            *state = AppState::Settings;
+        }
+        Message::SwitchToReader => {
+            *state = AppState::Reader;
+        }
+        Message::SwitchToLibrary => {
+            *state = AppState::Library;
+        }
     };
 }
 
@@ -282,6 +327,24 @@ fn draw_settings(settings: &mut AppSettings) -> Element<Message> {
         .push(fs)
         .push(exit);
 
+    Container::new(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(Align::End)
+        .align_y(Align::End)
+        .into()
+}
+fn draw_library(settings: &mut AppSettings) -> Element<Message> {
+    let exit = Button::new(
+        &mut settings.exitbtn,
+        Text::new("Exit")
+            .width(Length::Fill)
+            .horizontal_alignment(HorizontalAlignment::Center),
+    )
+    .width(Length::Units(80))
+    .padding(8)
+    .on_press(Message::Exit);
+    let content = Row::new().align_items(Align::Center).spacing(4).push(exit);
     Container::new(content)
         .width(Length::Fill)
         .height(Length::Fill)

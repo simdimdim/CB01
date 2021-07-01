@@ -11,9 +11,9 @@ iced = {git = "https://github.com/hecrj/iced", features = ["tokio", "image", "de
 iced_native = {git = "https://github.com/hecrj/iced"}
 
 reqwest = "0.11.4"
-url = {version = "2.2.2", features = ["serde"]}
+url = { version = "2.2.2", features = ["serde"] }
 
-chrono = {version = "0.4.19", features = ["serde"]}
+chrono = { version = "0.4.19", features = ["serde"] }
 directories-next = "2.0.0"
 itertools = "0.10.1"
 rand = "0.8.4"

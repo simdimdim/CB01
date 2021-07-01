@@ -1,6 +1,16 @@
 use iced::button;
 
 #[derive(Debug)]
+pub enum AppState {
+    Settings,
+    Reader,
+    Library,
+}
+impl Default for AppState {
+    fn default() -> Self { Self::Library }
+}
+
+#[derive(Debug)]
 pub struct AppSettings {
     pub exitbtn:     button::State,
     pub fs_btn:      button::State,
@@ -11,7 +21,6 @@ pub struct AppSettings {
     pub height:      u32,
     pub columns:     u16,
 }
-
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -19,7 +28,7 @@ impl Default for AppSettings {
             fs_btn:      Default::default(),
             should_exit: Default::default(),
             fullscreen:  Default::default(),
-            dark:        Default::default(),
+            dark:        true,
             width:       Default::default(),
             height:      Default::default(),
             columns:     1,
