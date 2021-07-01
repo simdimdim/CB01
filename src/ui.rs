@@ -1,7 +1,5 @@
 #![allow(unused_imports)]
 
-use std::cell::{Cell, RefCell};
-
 use self::{data::AppData, settings::AppSettings};
 use crate::{settings::AppState, APP_NAME};
 use iced::{
@@ -9,6 +7,7 @@ use iced::{
     executor,
     image,
     image::Viewer,
+    keyboard::Modifiers,
     scrollable,
     window,
     Align,
@@ -37,7 +36,8 @@ use iced_native::{
     Event as NativeEvent,
 };
 use image::viewer;
-use itertools::Itertools;
+use itertools::{Chunk, Either, Itertools};
+use std::cell::{Cell, RefCell};
 use window::Mode::{Fullscreen, Windowed};
 use Event::CloseRequested;
 use NativeEvent::{Keyboard, Window};
@@ -109,11 +109,24 @@ impl Application for App {
             } => {
                 match &message {
                     Message::EventOccurred(event) => match event {
-                        Window(CloseRequested) => {}
+                        Window(CloseRequested) => {
+                            settings.should_exit = true;
+                        }
                         Keyboard(KeyPressed {
                             key_code:
-                                KeyCode::Left | KeyCode::Up | KeyCode::PageUp,
-                            ..
+                                KeyCode::Left |
+                                KeyCode::Up |
+                                KeyCode::PageUp |
+                                KeyCode::A |
+                                KeyCode::W,
+
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    shift: false,
+                                    alt: false,
+                                    logo: false,
+                                },
                         }) => {
                             *offset = (*offset -
                                 (data.current.len() as f32 /
@@ -125,8 +138,19 @@ impl Application for App {
                         }
                         Keyboard(KeyPressed {
                             key_code:
-                                KeyCode::Right | KeyCode::Down | KeyCode::PageDown,
-                            ..
+                                KeyCode::Right |
+                                KeyCode::Down |
+                                KeyCode::PageDown |
+                                KeyCode::D |
+                                KeyCode::S |
+                                KeyCode::Space,
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    shift: false,
+                                    alt: false,
+                                    logo: false,
+                                },
                         }) => {
                             *offset = (*offset +
                                 (data.current.len() as f32 /
@@ -137,39 +161,84 @@ impl Application for App {
                             scroll.snap_to(*offset);
                         }
                         Keyboard(KeyPressed {
+                            key_code: KeyCode::F,
+                            modifiers:
+                                Modifiers {
+                                    control: true,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
+                        }) => {
+                            data.reversed = !data.reversed;
+                        }
+                        Keyboard(KeyPressed {
                             key_code: KeyCode::Home,
-                            ..
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
                         }) => {
                             *offset = 0.;
                             scroll.snap_to(*offset);
                         }
                         Keyboard(KeyPressed {
                             key_code: KeyCode::End,
-                            ..
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
                         }) => {
                             *offset = 1.;
                             scroll.snap_to(*offset);
                         }
                         Keyboard(KeyPressed {
                             key_code: KeyCode::Numpad1,
-                            ..
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
                         }) => {
                             *state = AppState::Library;
                         }
                         Keyboard(KeyPressed {
                             key_code: KeyCode::Numpad2,
-                            ..
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
                         }) => {
                             *state = AppState::Reader;
                         }
                         Keyboard(KeyPressed {
                             key_code: KeyCode::Numpad3,
-                            ..
+                            modifiers:
+                                Modifiers {
+                                    control: false,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
                         }) => {
                             *state = AppState::Settings;
                         }
                         _ => {}
                     },
+                    Message::Exit => {
+                        settings.should_exit = true;
+                    }
                     Message::Scrolled(off) => {
                         *offset = *off;
                     }
@@ -258,26 +327,50 @@ fn handle_settings(
                 settings.should_exit = true;
             }
             Keyboard(KeyPressed {
-                key_code: KeyCode::F,
-                ..
+                key_code: KeyCode::F | KeyCode::F12,
+                modifiers:
+                    Modifiers {
+                        control: false,
+                        logo: false,
+                        shift: false,
+                        alt: false,
+                    },
             }) => {
                 settings.fullscreen = !settings.fullscreen;
             }
             Keyboard(KeyPressed {
-                key_code: KeyCode::Q,
-                ..
+                key_code: KeyCode::Escape,
+                modifiers:
+                    Modifiers {
+                        control: false,
+                        logo: false,
+                        shift: false,
+                        alt: false,
+                    },
             }) => {
                 settings.should_exit = true;
             }
             Keyboard(KeyPressed {
                 key_code: KeyCode::NumpadAdd,
-                ..
+                modifiers:
+                    Modifiers {
+                        control: false,
+                        logo: false,
+                        shift: false,
+                        alt: false,
+                    },
             }) => {
                 settings.columns = settings.columns.saturating_add(1);
             }
             Keyboard(KeyPressed {
                 key_code: KeyCode::NumpadSubtract,
-                ..
+                modifiers:
+                    Modifiers {
+                        control: false,
+                        logo: false,
+                        shift: false,
+                        alt: false,
+                    },
             }) => {
                 settings.columns = 1.max(settings.columns.saturating_sub(1));
             }
@@ -356,36 +449,48 @@ fn draw_reader<'a>(
     scroll: &'a mut scrollable::State, data: &mut AppData,
     settings: &mut AppSettings,
 ) -> Element<'a, Message> {
-    let mut content = Scrollable::<'a, Message>::new(scroll)
-        .align_items(Align::Center)
-        .on_scroll(move |off| Message::Scrolled(off));
-    for ch in data
+    let re = &mut data.reversed;
+    let cn = data
         .current
-        .iter()
-        .chunks(settings.columns.max(1) as usize)
-        .into_iter()
-    {
-        let mut row = Row::<'a, Message>::new().align_items(Align::Center);
-        for cnt in ch {
-            let elem: Element<'_, Message> = match cnt {
-                Content::Image(z) => Image::new(z.clone())
-                    .width(Length::FillPortion(settings.columns))
-                    .height(Length::FillPortion(settings.columns))
-                    .into(),
-                Content::Text(z) => Text::new(z.clone())
-                    .width(Length::Fill)
-                    .vertical_alignment(VerticalAlignment::Top)
-                    .horizontal_alignment(HorizontalAlignment::Center)
-                    .into(),
-            };
-            row = row
-                .push(elem)
-                .max_width(settings.width)
-                .max_height(settings.height);
-        }
-        content = content.push(row).max_width(settings.width);
-    }
-    Container::new(content)
+        .chunks_mut(settings.columns.max(1) as usize)
+        .fold(
+            Scrollable::<'a, Message>::new(scroll)
+                .align_items(Align::Center)
+                .on_scroll(move |off| Message::Scrolled(off)),
+            |mut content, ch| {
+                if *re {
+                    ch.reverse();
+                    *re = false;
+                }
+                content = content
+                    .push(ch.into_iter().fold(
+                        Row::<'a, Message>::new().align_items(Align::Center),
+                        |mut row, cnt| {
+                            let elem: Element<'_, Message> = match cnt {
+                                Content::Image(z) => Image::new(z.clone())
+                                    .width(Length::FillPortion(settings.columns))
+                                    .height(Length::FillPortion(settings.columns))
+                                    .into(),
+                                Content::Text(z) => Text::new(z.clone())
+                                    .width(Length::Fill)
+                                    .vertical_alignment(VerticalAlignment::Top)
+                                    .horizontal_alignment(
+                                        HorizontalAlignment::Center,
+                                    )
+                                    .into(),
+                            };
+                            row = row
+                                .push(elem)
+                                .max_width(settings.width)
+                                .max_height(settings.height);
+                            row
+                        },
+                    ))
+                    .max_width(settings.width);
+                content
+            },
+        );
+    Container::new(cn)
         .width(Length::Fill)
         .height(Length::Fill)
         .align_x(Align::Center)
