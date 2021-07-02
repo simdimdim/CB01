@@ -5,16 +5,18 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Content {
     Image(Handle),
     Text(String),
+    Empty,
 }
 impl Content {
     pub fn visual(&self) -> bool {
         match self {
-            Content::Image(_) => true,
-            Content::Text(_) => false,
+            Self::Image(_) => true,
+            Self::Text(_) => false,
+            Self::Empty => false,
         }
     }
 
@@ -24,10 +26,10 @@ impl Content {
             pb.set_extension("jpg");
         }
         match self {
-            Content::Image(_h) => {
+            Self::Image(_h) => {
                 let _f = Handle::from_path(&pb);
             }
-            Content::Text(s) => {
+            Self::Text(s) => {
                 OpenOptions::new()
                     .write(true)
                     .create(true)
@@ -38,6 +40,7 @@ impl Content {
                     .await
                     .unwrap();
             }
+            Self::Empty => (),
         }
     }
 
@@ -59,7 +62,9 @@ impl Content {
         }
     }
 }
-
+impl Default for Content {
+    fn default() -> Self { Self::Empty }
+}
 impl From<Vec<String>> for Content {
     fn from(text: Vec<String>) -> Self { Self::Text(text.join("\n\n")) }
 }

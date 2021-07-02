@@ -1,12 +1,7 @@
-#![allow(unused_imports)]
-
 use self::{data::AppData, settings::AppSettings};
-use crate::{settings::AppState, APP_NAME};
+use crate::{settings::AppState, Content, APP_NAME};
 use iced::{
-    button,
     executor,
-    image,
-    image::Viewer,
     keyboard::Modifiers,
     scrollable,
     window,
@@ -15,17 +10,14 @@ use iced::{
     Button,
     Clipboard,
     Color,
-    Column,
     Command,
     Container,
     Element,
     HorizontalAlignment,
     Image,
     Length,
-    Rectangle,
     Row,
     Scrollable,
-    Size,
     Subscription,
     Text,
     VerticalAlignment,
@@ -35,24 +27,12 @@ use iced_native::{
     window::Event,
     Event as NativeEvent,
 };
-use image::viewer;
-use itertools::{Chunk, Either, Itertools};
-use std::cell::{Cell, RefCell};
 use window::Mode::{Fullscreen, Windowed};
 use Event::CloseRequested;
 use NativeEvent::{Keyboard, Window};
 
-pub mod content;
 pub mod data;
 pub mod settings;
-
-pub use self::content::*;
-
-// #[derive(Debug)]
-// pub struct State {
-//     app:   App,
-//     state: AppState,
-// }
 
 #[derive(Debug)]
 pub struct App {
@@ -487,6 +467,13 @@ fn draw_reader<'a>(
                                         HorizontalAlignment::Center,
                                     )
                                     .into(),
+                                    Content::Empty=>{Text::new("There's no content here.")
+                                    .width(Length::Fill)
+                                    .vertical_alignment(VerticalAlignment::Top)
+                                    .horizontal_alignment(
+                                        HorizontalAlignment::Center,
+                                    )
+                                    .into()}
                             };
                             row = row
                                 .push(elem)
