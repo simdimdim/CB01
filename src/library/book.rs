@@ -8,14 +8,12 @@ use std::{
 
 pub(crate) type Id = u16;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Book {
     pub id:       u16,
     pub content:  BTreeMap<u16, Content>,
     pub chapters: Vec<Chapter>,
-    pub last:     Chapter,
 }
-
 impl Book {
     pub fn new() -> Self {
         let mut content = BTreeMap::new();
@@ -23,8 +21,7 @@ impl Book {
         Self {
             id: Id::MAX,
             content,
-            chapters: Vec::new(),
-            last: Chapter::default(),
+            chapters: vec![Chapter::default()],
         }
     }
 
@@ -34,7 +31,7 @@ impl Book {
     }
 
     pub fn chapter(&self, n: Id) -> Option<Range<Id, Content>> {
-        (self.chapters.len() < n as usize)
+        self.valid(n as usize)
             .then(|| self.cont_batch(self.chapters[n as usize].range()))
     }
 
@@ -44,8 +41,9 @@ impl Book {
     }
 
     pub fn chap_swap(&mut self, n1: Id, n2: Id) {
-        self.valid(n1.max(n2) as usize)
-            .then(|| self.chapters.swap(n1 as usize, n2 as usize));
+        if self.valid(n1 as usize) && self.valid(n2 as usize) && n1 != n2 {
+            self.chapters.swap(n1 as usize, n2 as usize)
+        }
     }
 
     pub fn chap_add(&mut self, n1: Option<usize>, l: usize) {
@@ -53,8 +51,8 @@ impl Book {
         match n1 {
             Some(n) => {
                 if self.valid(n) {
-                    prev = self.chapters[n].end();
-                    self.chapters.push((prev + 1, prev + l as u16).into());
+                    prev = self.chapters[n].end() + 1;
+                    self.chapters.push((prev, l as Id).into());
                 }
             }
             None => {
@@ -63,8 +61,9 @@ impl Book {
                     .par_iter()
                     .max_by_key(|c| c.end())
                     .map(|c| c.end())
-                    .unwrap_or(0);
-                self.chapters.push((prev + 1, prev + l as u16).into());
+                    .unwrap_or(0) +
+                    1;
+                self.chapters.push((prev, l as Id).into());
             }
         }
     }
@@ -98,13 +97,18 @@ impl Book {
             .then(|| self.chapters.swap(n1 as usize, n2 as usize));
     }
 
-    pub fn cont_add(&mut self, _new: Vec<Content>) { todo!() }
+    pub fn cont_add(&mut self, new: Vec<Content>) {
+        let l = self.cont_len();
+        new.into_iter().enumerate().for_each(|(n, i)| {
+            self.content.insert((l + n) as Id, i);
+        })
+    }
 
     pub fn cont_remove(&mut self, _new: Vec<Content>) { todo!() }
 
     pub fn cont_len(&self) -> usize { self.content.len() }
 
-    fn valid(&self, n: usize) -> bool { self.chap_len() < n }
+    fn valid(&self, n: usize) -> bool { self.chap_len() > n }
 }
 
 impl Default for Book {
@@ -116,5 +120,13 @@ impl From<Id> for Book {
             id,
             ..Default::default()
         }
+    }
+}
+impl Ord for Book {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.id.cmp(&other.id) }
+}
+impl PartialOrd for Book {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.id.cmp(&other.id))
     }
 }

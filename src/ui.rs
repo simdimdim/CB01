@@ -1,5 +1,8 @@
+use std::path::PathBuf;
+
 use self::{data::AppData, settings::AppSettings};
-use crate::{settings::AppState, Content, APP_NAME};
+use crate::{settings::AppState, Content, Library, APP_NAME};
+use directories_next::{ProjectDirs, UserDirs};
 use iced::{
     executor,
     keyboard::Modifiers,
@@ -36,6 +39,7 @@ pub mod settings;
 
 #[derive(Debug)]
 pub struct App {
+    library:  Library,
     scroff:   f32,
     scroll:   scrollable::State,
     data:     AppData,
@@ -44,6 +48,7 @@ pub struct App {
 impl App {
     fn new() -> Self {
         Self {
+            library:  Library::default(),
             scroff:   0f32,
             scroll:   scrollable::State::new(),
             data:     Default::default(),
@@ -69,7 +74,18 @@ impl Application for App {
     type Message = Message;
 
     fn new(_flags: ()) -> (App, Command<Message>) {
-        (App::new(), Command::none())
+        let mut app = App::new();
+        let library = Library::default();
+        // TODO: Load library from disc.
+        let _fonts = UserDirs::new()
+            .as_ref()
+            .map(|x| x.font_dir())
+            .unwrap()
+            .unwrap_or(PathBuf::from("C:\\Windows\\Fonts").as_path());
+        let projdirs = ProjectDirs::from("", "", APP_NAME).unwrap();
+        let _confdir = projdirs.config_dir();
+        app.library = library;
+        (app, Command::none())
     }
 
     fn title(&self) -> String { APP_NAME.to_owned() }
@@ -83,6 +99,7 @@ impl Application for App {
                 scroll,
                 settings,
                 data,
+                ..
             } => {
                 match &message {
                     Message::EventOccurred(event) => match event {
