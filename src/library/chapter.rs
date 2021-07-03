@@ -34,8 +34,8 @@ impl Chapter {
         }
         // all 4 kinds of overlap:
         // self contains slice,
-        // self contains end of slice
-        // self contains start of slice
+        // self contains the end of the slice
+        // self contains the start of the slice
         // slice contains self
         let rng = self.range();
         self.len = match (rng.contains(slice.start()), rng.contains(slice.end()))
@@ -50,6 +50,38 @@ impl Chapter {
                 self.len.saturating_sub(rng.end() - slice.start() + 1)
             }
             (false, false) => 0,
+        };
+        self.len
+    }
+
+    pub fn lengthen(&mut self, slice: RangeInclusive<Id>) -> Id {
+        // if range is after the Chapter return
+        if &self.end() < slice.start() {
+            return self.len;
+        }
+        // if range is left of the Chapter move to the right
+        if slice.end() < &self.start() {
+            self.offset += slice.count() as Id;
+            return self.len;
+        }
+        // all 4 kinds of overlap:
+        // self contains slice,
+        // self contains the end of the slice
+        // self contains the start of the slice
+        // slice contains self
+        let rng = self.range();
+        self.len = match (rng.contains(slice.start()), rng.contains(slice.end()))
+        {
+            (true, true) => self.len.saturating_add(slice.count() as Id),
+            (false, true) => {
+                self.offset =
+                    self.offset.saturating_add(rng.start() - slice.start());
+                self.len.saturating_add(slice.end() - rng.start() + 1)
+            }
+            (true, false) => {
+                self.len.saturating_add(rng.end() - slice.start() + 1)
+            }
+            (false, false) => self.len.saturating_add(slice.count() as Id),
         };
         self.len
     }

@@ -4,7 +4,7 @@ use pagepal_ui::*;
 fn book() {
     let mut book = Book::open("One Piece");
     // Test number of pages in a chapter you know the length of
-    book.cont_add((0..5).map(|_| Content::Empty).collect());
+    book.cont_add((0..5).map(|_| Content::Empty).collect(), None);
     book.chap_add(None, 2);
     assert_eq!(book.chapter(1).map(Iterator::count), Some(3));
     remove_cont()

@@ -24,7 +24,7 @@ git = "https://github.com/hecrj/iced"
 git = "https://github.com/hecrj/iced"
 [dependencies.tokio]
 features = ["fs", "time", "net", "macros", "rt-multi-thread"]
-version = "1.7.1"
+version = "1.8.0"
 [dependencies.url]
 features = ["serde"]
 version = "2.2.2"

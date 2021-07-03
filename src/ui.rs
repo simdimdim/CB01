@@ -1,7 +1,5 @@
-use std::path::PathBuf;
-
 use self::{data::AppData, settings::AppSettings};
-use crate::{settings::AppState, Content, Library, APP_NAME};
+use crate::{settings::AppState, Library, APP_NAME};
 use directories_next::{ProjectDirs, UserDirs};
 use iced::{
     executor,
@@ -17,19 +15,18 @@ use iced::{
     Container,
     Element,
     HorizontalAlignment,
-    Image,
     Length,
     Row,
     Scrollable,
     Subscription,
     Text,
-    VerticalAlignment,
 };
 use iced_native::{
     keyboard::{Event::KeyPressed, KeyCode},
     window::Event,
     Event as NativeEvent,
 };
+use std::path::PathBuf;
 use window::Mode::{Fullscreen, Windowed};
 use Event::CloseRequested;
 use NativeEvent::{Keyboard, Window};
@@ -452,16 +449,16 @@ fn draw_library(settings: &mut AppSettings) -> Element<Message> {
         .into()
 }
 fn draw_reader<'a>(
-    scroll: &'a mut scrollable::State, data: &mut AppData,
+    scroll: &'a mut scrollable::State, data: &'a mut AppData,
     settings: &mut AppSettings,
 ) -> Element<'a, Message> {
     let re = data.reversed;
     let cn = data
         .current
-        // TODO: skin n take, chunk
+        // TODO: skip n take, chunk
         .chunks_mut(settings.columns.max(1) as usize)
         .fold(
-            Scrollable::<'a, Message>::new(scroll)
+            Scrollable ::new(scroll)
                 .align_items(Align::Center)
                 .on_scroll(move |off| Message::Scrolled(off)),
             |mut content, ch| {
@@ -470,28 +467,9 @@ fn draw_reader<'a>(
                 }
                 content = content
                     .push(ch.into_iter().fold(
-                        Row::<'a, Message>::new().align_items(Align::Center),
+                        Row::new().align_items(Align::Center),
                         |mut row, cnt| {
-                            let elem: Element<'_, Message> = match cnt {
-                                Content::Image(z) => Image::new(z.clone())
-                                    .width(Length::FillPortion(settings.columns))
-                                    .height(Length::FillPortion(settings.columns))
-                                    .into(),
-                                Content::Text(z) => Text::new(z.clone())
-                                    .width(Length::Fill)
-                                    .vertical_alignment(VerticalAlignment::Top)
-                                    .horizontal_alignment(
-                                        HorizontalAlignment::Center,
-                                    )
-                                    .into(),
-                                    Content::Empty=>{Text::new("There's no content here.")
-                                    .width(Length::Fill)
-                                    .vertical_alignment(VerticalAlignment::Top)
-                                    .horizontal_alignment(
-                                        HorizontalAlignment::Center,
-                                    )
-                                    .into()}
-                            };
+                            let elem = cnt.view(Some(settings.columns)) ;
                             row = row
                                 .push(elem)
                                 .max_width(settings.width)

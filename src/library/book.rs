@@ -1,5 +1,10 @@
 use super::{Chapter, Content};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use itertools::Either;
+use rayon::iter::{
+    IntoParallelRefIterator,
+    IntoParallelRefMutIterator,
+    ParallelIterator,
+};
 use std::{
     collections::{btree_map::Range, BTreeMap},
     ops::RangeInclusive,
@@ -17,7 +22,9 @@ pub struct Book {
 impl Book {
     pub fn new() -> Self {
         let mut content = BTreeMap::new();
+        // 0th index content to be used as cover page, to be chagned to default
         content.insert(0, Content::Empty);
+        // 0th index chapter to be used as bookmark
         Self {
             id: Id::MAX,
             content,
@@ -29,6 +36,10 @@ impl Book {
         let _pb = PathBuf::from("library").join(label.into());
         Book::default()
     }
+
+    pub fn get_cover(&self) -> &Content { self.content.get(&0).unwrap() }
+
+    pub fn last(&self) -> &Chapter { &self.chapters[0] }
 
     pub fn chapter(&self, n: Id) -> Option<Range<Id, Content>> {
         self.valid(n as usize)
@@ -93,22 +104,70 @@ impl Book {
     }
 
     pub fn cont_swap(&mut self, n1: Id, n2: Id) {
-        self.valid(n1.max(n2) as usize)
-            .then(|| self.chapters.swap(n1 as usize, n2 as usize));
+        if self.content.contains_key(&n1) &&
+            self.content.contains_key(&n2) &&
+            n1 != n2
+        {
+            let a = self.content.get_mut(&n1).unwrap() as *mut _;
+            let b = self.content.get_mut(&n2).unwrap() as *mut _;
+            unsafe {
+                std::ptr::swap(a, b);
+            }
+        }
     }
 
-    pub fn cont_add(&mut self, new: Vec<Content>) {
-        let l = self.cont_len();
-        new.into_iter().enumerate().for_each(|(n, i)| {
-            self.content.insert((l + n) as Id, i);
-        })
+    pub fn key_max(rng: Either<BTreeMap<Id, Content>, Range<Id, Content>>) -> Id {
+        match rng {
+            Either::Left(a) => *a.par_iter().max_by_key(|(&k, _)| k).unwrap().0,
+            Either::Right(b) => *b.max_by_key(|(&k, _)| k).unwrap().0,
+        }
+    }
+
+    pub fn cont_add(&mut self, cont: Vec<Content>, pos: Option<Position>) {
+        let default = (&(1 as Id), &Content::Empty);
+        let split = match pos.unwrap_or(Position::Last) {
+            Position::First => 1,
+            Position::BeforeCurrent => self.chapters[0].start() as usize,
+            Position::AfterCurrent => self.chapters[0].end() as usize + 1,
+            Position::Last => self.cont_len() as usize,
+        } as Id;
+
+        // lengthen chapters
+        // filtered by insert pos
+        // or better conditional lengthen depending on insert pos
+
+        let first = self
+            .content
+            .range(split..)
+            .next()
+            .unwrap_or(self.content.iter().rev().next().unwrap())
+            .0
+            .clone();
+        let len = cont.len() as Id;
+        let mut leftovers = self.content.split_off(&first);
+        let l = self
+            .content
+            .par_iter()
+            .max_by_key(|(&k, _)| k)
+            .unwrap_or(default)
+            .0
+            .clone();
+        cont.into_iter().enumerate().for_each(|(n, i)| {
+            self.content.insert(l + n as Id, i);
+        });
+        self.content.append(
+            &mut leftovers
+                .par_iter_mut()
+                .map(|(k, v)| ((k + len), v.clone()))
+                .collect::<BTreeMap<Id, Content>>(),
+        );
     }
 
     pub fn cont_remove(&mut self, _new: Vec<Content>) { todo!() }
 
     pub fn cont_len(&self) -> usize { self.content.len() }
 
-    fn valid(&self, n: usize) -> bool { self.chap_len() > n }
+    fn valid(&self, n: usize) -> bool { self.chap_len() > n && n > 0 }
 }
 
 impl Default for Book {
@@ -129,4 +188,11 @@ impl PartialOrd for Book {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.id.cmp(&other.id))
     }
+}
+
+pub enum Position {
+    First,
+    BeforeCurrent,
+    AfterCurrent,
+    Last,
 }
