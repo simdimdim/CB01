@@ -5,7 +5,10 @@ use iced::{
     executor,
     keyboard::Modifiers,
     scrollable,
-    window,
+    window::{
+        self,
+        Mode::{Fullscreen, Windowed},
+    },
     Align,
     Application,
     Button,
@@ -23,13 +26,10 @@ use iced::{
 };
 use iced_native::{
     keyboard::{Event::KeyPressed, KeyCode},
-    window::Event,
-    Event as NativeEvent,
+    window::Event::{self, CloseRequested},
+    Event::{Keyboard, Window},
 };
 use std::path::PathBuf;
-use window::Mode::{Fullscreen, Windowed};
-use Event::CloseRequested;
-use NativeEvent::{Keyboard, Window};
 
 pub mod data;
 pub mod settings;
@@ -62,6 +62,7 @@ pub enum Message {
     SwitchToReader,
     SwitchToLibrary,
     FullscreenMode,
+    SaveLibrary,
     Exit,
 }
 
@@ -395,6 +396,7 @@ fn handle_settings(settings: &mut AppSettings, _message: &Message) {
         Message::SwitchToLibrary => {
             settings.state = AppState::Library;
         }
+        Message::SaveLibrary => (),
     };
 }
 

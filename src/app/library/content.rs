@@ -65,6 +65,7 @@ impl Content {
         }
     }
 
+    // tempt, to be adopted by the translator struct/macro
     pub fn view(&self, columns: Option<u16>) -> Element<Message> {
         use iced::{HorizontalAlignment, Length, Text, VerticalAlignment};
         match self {

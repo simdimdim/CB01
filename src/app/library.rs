@@ -60,6 +60,17 @@ impl Library {
         self.books.remove(id)
     }
 
+    pub fn rename(&mut self, old: &Label, new: String) -> Option<Book> {
+        if self.titles.contains_key(old) {
+            let key = self.titles.remove(old).unwrap();
+            let b = self.books.remove(&key).unwrap();
+            self.titles.insert(new.into(), b.id);
+            self.books.insert(key, b)
+        } else {
+            None
+        }
+    }
+
     pub fn size(&self) -> usize { self.books.len() }
 
     fn book_id(&mut self, name: &Label) -> &Id {
