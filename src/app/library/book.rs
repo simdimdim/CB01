@@ -1,4 +1,5 @@
 use super::{Chapter, Content};
+use crate::Page;
 use itertools::Either;
 use rayon::iter::{
     IntoParallelRefIterator,
@@ -13,20 +14,28 @@ use std::{
 
 pub(crate) type Id = u16;
 
+pub enum Position {
+    First,
+    BeforeCurrent,
+    AfterCurrent,
+    Last,
+}
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Book {
     pub id:       u16,
+    pub src:      Option<Page>,
     pub content:  BTreeMap<u16, Content>,
     pub chapters: Vec<Chapter>,
 }
 impl Book {
-    pub fn new() -> Self {
+    pub fn new(page: Option<Page>) -> Self {
         let mut content = BTreeMap::new();
         // 0th index content to be used as cover page, to be chagned to default
         content.insert(0, Content::Empty);
         // 0th index chapter to be used as bookmark
         Self {
             id: Id::MAX,
+            src: page,
             content,
             chapters: vec![Chapter::default()],
         }
@@ -123,7 +132,7 @@ impl Book {
         }
     }
 
-    pub fn cont_add(&mut self, cont: Vec<Content>, pos: Option<Position>) {
+    pub fn cont_add(&mut self, cont: Vec<Box<Vec<u8>>>, pos: Option<Position>) {
         let default = (&(1 as Id), &Content::Empty);
         let split = match pos.unwrap_or(Position::Last) {
             Position::First => 1,
@@ -152,8 +161,9 @@ impl Book {
             .unwrap_or(default)
             .0
             .clone();
-        cont.into_iter().enumerate().for_each(|(n, i)| {
-            self.content.insert(l + n as Id, i);
+        cont.into_iter().enumerate().for_each(|(n, _data)| {
+            // TODO: convert data to Content.
+            self.content.insert(l + n as Id, Content::Empty);
         });
         self.content.append(
             &mut leftovers
@@ -171,7 +181,7 @@ impl Book {
 }
 
 impl Default for Book {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self { Self::new(None) }
 }
 impl From<Id> for Book {
     fn from(id: Id) -> Self {
@@ -188,11 +198,4 @@ impl PartialOrd for Book {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.id.cmp(&other.id))
     }
-}
-
-pub enum Position {
-    First,
-    BeforeCurrent,
-    AfterCurrent,
-    Last,
 }

@@ -1,44 +1,61 @@
 use crate::{Label, Page};
+use reqwest::header::HeaderMap;
 use select::{
     document::Document,
     predicate::{Child, Descendant, Name, Or, Text},
 };
 
-type Input<'a> = &'a Option<Document>;
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultFinder;
 
-pub trait Finder:
-    TextFinder + TitleFinder + LinksFinder + NextFinder + ImageFinder {
-    fn title(&self, doc: Input) -> Label {
-        self.title_def(doc.as_ref().expect("HTML not found."))
-    }
-    fn links(&self, doc: Input) -> Vec<Page> {
-        self.links_def(doc.as_ref().expect("HTML not found."))
-    }
-    fn next(&self, doc: Input) -> Option<Page> {
-        self.next_def(doc.as_ref().expect("HTML not found."))
-    }
-    fn text(&self, doc: Input) -> Vec<String> {
-        self.text_def(doc.as_ref().expect("HTML not found."))
-    }
-    fn images(&self, doc: Input) -> Vec<Page> {
-        self.images_def(doc.as_ref().expect("HTML not found."))
-    }
-}
+type Input<'a> = &'a Document;
 
-pub trait TitleFinder {
-    fn title_def(&self, doc: &Document) -> Label {
+pub trait Finder: std::fmt::Debug + Send + Sync {
+    fn pred(&self) -> &str { "Next" }
+    fn split_by(&self) -> &str { " Chapter" }
+    fn num(&self, page: &Page) -> (u16, u16, String) {
+        let segments = page
+            .url
+            .path_segments()
+            .unwrap()
+            .rev()
+            .filter(|&a| a != "")
+            .collect::<Vec<_>>();
+        let numbers = segments
+            .iter()
+            .map(|a| {
+                a.matches(char::is_numeric)
+                    .collect::<Vec<&str>>()
+                    .join("")
+                    .parse::<u16>()
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<u16>>();
+        // TODO: do a better job at finding the index
+        let index_candidate = if segments.len() < 3 {
+            segments.iter().last()
+        } else {
+            segments.iter().rev().skip(1).next()
+        };
+        match (numbers.as_slice(), index_candidate) {
+            ([x @ 0..=9000, y @ 0..=9000, ..], Some(&z)) => {
+                (*x, *y, z.to_string())
+            }
+            ([x @ 0..=9000], Some(z)) => (0, *x, z.to_string()),
+            ([], Some(z)) => (0, 0, z.to_string()),
+            _ => (0, 0, "".to_string()),
+        }
+    }
+    fn title(&self, doc: Input) -> Label {
         let title = doc
             .select(Name("title"))
             .into_selection()
             .first()
             .unwrap()
             .text();
-        if title.contains(" Chapter") {
+        if title.contains(self.split_by()) {
             title
-                .split(" Chapter")
+                .split(self.split_by())
                 .filter(|&a| a != "")
                 .collect::<Vec<_>>()
                 .first()
@@ -49,9 +66,8 @@ pub trait TitleFinder {
         }
         .into()
     }
-}
-pub trait LinksFinder {
-    fn links_def(&self, doc: &Document) -> Vec<Page> {
+    fn index(&self, _doc: Input) -> Option<Page> { None }
+    fn links(&self, doc: Input) -> Vec<Page> {
         doc.select(Descendant(
             Name("div"),
             Or(Name("p"), Or(Name("table"), Name("ul"))),
@@ -67,11 +83,9 @@ pub trait LinksFinder {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-}
-pub trait NextFinder {
-    fn next_def(&self, doc: &Document) -> Option<Page> {
+    fn next(&self, doc: Input) -> Option<Page> {
         doc.select(Child(Name("a"), Text))
-            .filter(|a| a.text().contains("Next"))
+            .filter(|a| a.text().contains(self.pred()))
             .map(|a| {
                 Page::from(a.parent().unwrap().attr("href").unwrap().to_string())
             })
@@ -79,9 +93,7 @@ pub trait NextFinder {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-}
-pub trait TextFinder {
-    fn text_def(&self, doc: &Document) -> Vec<String> {
+    fn text(&self, doc: Input) -> Vec<String> {
         doc.select(Child(Name("div"), Name("p")))
             .map(|a| a.parent().unwrap().children().into_selection())
             .max_by(|a, b| a.len().cmp(&b.len()))
@@ -91,9 +103,7 @@ pub trait TextFinder {
             .map(|a| a.text())
             .collect()
     }
-}
-pub trait ImageFinder {
-    fn images_def(&self, doc: &Document) -> Vec<Page> {
+    fn images(&self, doc: Input) -> Vec<Page> {
         doc.select(Child(Name("div"), Name("img")))
             .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
             .max_by(|a, b| a.len().cmp(&b.len()))
@@ -104,10 +114,7 @@ pub trait ImageFinder {
             .collect()
         /* TODO: Similar to index() add a check for links similarity */
     }
+    fn headers(&self) -> HeaderMap { HeaderMap::new() }
 }
+
 impl Finder for DefaultFinder {}
-impl TitleFinder for DefaultFinder {}
-impl LinksFinder for DefaultFinder {}
-impl NextFinder for DefaultFinder {}
-impl TextFinder for DefaultFinder {}
-impl ImageFinder for DefaultFinder {}

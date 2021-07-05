@@ -6,10 +6,11 @@ use std::{
 pub mod book;
 pub mod chapter;
 pub mod content;
-
 pub use book::*;
 pub use chapter::*;
 pub use content::*;
+
+pub(self) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(String);
@@ -19,7 +20,6 @@ pub struct Library {
     pub books:  BTreeMap<u16, Book>,
     pub num:    Id,
 }
-pub(self) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
 
 impl Library {
     pub fn book(&mut self, name: &Label) -> &Book {
@@ -84,6 +84,13 @@ impl Library {
     }
 
     fn new_id(&self) -> Id { ID_COUNTER.fetch_add(1, Ordering::SeqCst) % Id::MAX }
+
+    pub async fn add_book(
+        &mut self, (title, bk): (&Label, Book),
+    ) -> Option<Book> {
+        let key = *self.book_id(title);
+        self.books.insert(key, bk)
+    }
 }
 
 impl<T: Into<String>> From<T> for Label {

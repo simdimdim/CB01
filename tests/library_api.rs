@@ -1,10 +1,20 @@
 use pagepal_ui::*;
 
+#[tokio::test]
+async fn fetch() {
+    let p = "https://readmanganato.com/manga-fz982434/chapter-16".into();
+    let r = Retriever::default();
+    let page = r.get(p).await;
+    let next = r.next(&page).await;
+    let index = r.index(&next.unwrap()).await;
+    let _ = r.links(&index).await;
+}
+
 #[test]
 fn book() {
     let mut book = Book::open("One Piece");
     // Test number of pages in a chapter you know the length of
-    book.cont_add((0..5).map(|_| Content::Empty).collect(), None);
+    book.cont_add((0..5).map(|_| Box::new(vec![])).collect(), None);
     book.chap_add(None, 2);
     assert_eq!(book.chapter(1).map(Iterator::count), Some(3));
     remove_cont()
