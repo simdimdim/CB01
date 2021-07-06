@@ -1,11 +1,12 @@
-use crate::{Id, Label};
+use crate::Id;
+use reqwest::Url;
 use std::ops::RangeInclusive;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Chapter {
     pub offset: Id,
     pub len:    Id,
-    pub name:   Option<Label>,
+    pub name:   Option<Url>,
 }
 impl Chapter {
     pub fn contains(&self, n: &Id) -> bool {

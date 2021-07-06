@@ -1,5 +1,6 @@
-use crate::Message;
+use crate::{Message, };
 use iced::{image::Handle, Element, Image};
+use reqwest::Url;
 use std::path::PathBuf;
 use tokio::{
     fs::OpenOptions,
@@ -8,17 +9,27 @@ use tokio::{
 
 #[derive(Debug, Clone, Hash)]
 pub enum Content {
-    Image(PathBuf),
-    Text(PathBuf, String),
-    Other(PathBuf),
+    Image {
+        pb:  PathBuf,
+        src: Option<Url>,
+    },
+    Text {
+        pb:   PathBuf,
+        src:  Option<Url>,
+        text: String,
+    },
+    Other {
+        pb:  PathBuf,
+        src: Option<Url>,
+    },
     Empty,
 }
 impl Content {
     pub fn visual(&self) -> bool {
         match self {
-            Self::Image(_) => true,
-            Self::Text(..) => false,
-            Self::Other(..) => false,
+            Self::Image { .. } => true,
+            Self::Text { .. } => false,
+            Self::Other { .. } => false,
             Self::Empty => false,
         }
     }
@@ -29,39 +40,46 @@ impl Content {
             pb.set_extension("jpg");
         }
         match self {
-            Self::Image(_h) => {
+            Self::Image { .. } => {
                 let _f = Handle::from_path(&pb);
             }
-            Self::Text(pb, s) => {
+            Self::Text { pb, text, .. } => {
                 OpenOptions::new()
                     .write(true)
                     .create(true)
-                    .open(&pb)
+                    .open(pb)
                     .await
                     .expect("Missing content file.")
-                    .write(s.as_bytes())
+                    .write(text.as_bytes())
                     .await
                     .unwrap();
             }
-            Self::Other(..) => (),
+            Self::Other { .. } => (),
             Self::Empty => (),
         }
     }
 
-    pub async fn load(&mut self, pb: PathBuf) -> Self {
-        if pb.extension() == Some("jpg".as_ref()) {
-            Content::Image(pb)
+    pub async fn load(&mut self, path: PathBuf) -> Self {
+        if path.extension() == Some("jpg".as_ref()) {
+            Content::Image {
+                pb:  path,
+                src: None,
+            }
         } else {
             let mut buf = vec![];
             OpenOptions::new()
                 .read(true)
-                .open(&pb)
+                .open(&path)
                 .await
                 .expect("Missing content file.")
                 .read_to_end(&mut buf)
                 .await
                 .unwrap();
-            Content::Text(pb, String::from_utf8(buf).unwrap())
+            Content::Text {
+                pb:   path,
+                src:  None,
+                text: String::from_utf8(buf).unwrap(),
+            }
         }
     }
 
@@ -69,16 +87,16 @@ impl Content {
     pub fn view(&self, columns: Option<u16>) -> Element<Message> {
         use iced::{HorizontalAlignment, Length, Text, VerticalAlignment};
         match self {
-            Self::Image(pb) => Image::new(Handle::from_path(pb))
+            Self::Image { pb: path, .. } => Image::new(Handle::from_path(path))
                 .width(Length::FillPortion(columns.unwrap_or(1)))
                 .height(Length::FillPortion(columns.unwrap_or(1)))
                 .into(),
-            Self::Text(_, t) => Text::new(t.clone())
+            Self::Text { text, .. } => Text::new(text.clone())
                 .width(Length::Fill)
                 .vertical_alignment(VerticalAlignment::Top)
                 .horizontal_alignment(HorizontalAlignment::Center)
                 .into(),
-            Self::Other(..) => Text::new("Unable to preview.")
+            Self::Other { .. } => Text::new("Unable to preview.")
                 .width(Length::Fill)
                 .vertical_alignment(VerticalAlignment::Top)
                 .horizontal_alignment(HorizontalAlignment::Center)
@@ -96,29 +114,35 @@ impl Default for Content {
 }
 impl From<Vec<String>> for Content {
     fn from(text: Vec<String>) -> Self {
-        Self::Text(PathBuf::from("library/unsorted"), text.join("\n\n"))
+        Self::Text {
+            pb:   PathBuf::from("library/unsorted"),
+            text: text.join("\n\n"),
+            src:  None,
+        }
     }
 }
 impl Eq for Content {}
 impl PartialEq for Content {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Image(_), Self::Image(_)) => todo!(),
-            (Self::Text(pb1, s), Self::Text(pb2, t)) => pb1 == pb2 && s == t,
+            (Self::Image { pb, .. }, Self::Image { pb: p, .. }) => pb == p,
+            (Self::Text { pb, text, .. }, Self::Text { pb: p, text: t, .. }) => {
+                pb == p && text == t
+            }
             (Self::Empty, Self::Empty) => true,
-            (Self::Other(pb1), Self::Other(pb2)) => pb1 == pb2,
-            (Self::Image(_), Self::Text(_, _)) => false,
-            (Self::Image(_), Self::Other(_)) => false,
-            (Self::Image(_), Self::Empty) => false,
-            (Self::Text(_, _), Self::Image(_)) => false,
-            (Self::Text(_, _), Self::Other(_)) => false,
-            (Self::Text(_, _), Self::Empty) => false,
-            (Self::Other(_), Self::Image(_)) => false,
-            (Self::Other(_), Self::Text(_, _)) => false,
-            (Self::Other(_), Self::Empty) => false,
-            (Self::Empty, Self::Image(_)) => false,
-            (Self::Empty, Self::Text(_, _)) => false,
-            (Self::Empty, Self::Other(_)) => false,
+            (Self::Other { pb, .. }, Self::Other { pb: p2, .. }) => pb == p2,
+            (Content::Image { .. }, Content::Text { .. }) => false,
+            (Content::Image { .. }, Content::Other { .. }) => false,
+            (Content::Image { .. }, Content::Empty) => false,
+            (Content::Text { .. }, Content::Image { .. }) => false,
+            (Content::Text { .. }, Content::Other { .. }) => false,
+            (Content::Text { .. }, Content::Empty) => false,
+            (Content::Other { .. }, Content::Image { .. }) => false,
+            (Content::Other { .. }, Content::Text { .. }) => false,
+            (Content::Other { .. }, Content::Empty) => false,
+            (Content::Empty, Content::Image { .. }) => false,
+            (Content::Empty, Content::Text { .. }) => false,
+            (Content::Empty, Content::Other { .. }) => false,
         }
     }
 }

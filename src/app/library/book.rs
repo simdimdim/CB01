@@ -1,11 +1,7 @@
 use super::{Chapter, Content};
 use crate::Page;
 use itertools::Either;
-use rayon::iter::{
-    IntoParallelRefIterator,
-    IntoParallelRefMutIterator,
-    ParallelIterator,
-};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::{btree_map::Range, BTreeMap},
     ops::RangeInclusive,
@@ -167,7 +163,7 @@ impl Book {
         });
         self.content.append(
             &mut leftovers
-                .par_iter_mut()
+                .iter_mut()
                 .map(|(k, v)| ((k + len), v.clone()))
                 .collect::<BTreeMap<Id, Content>>(),
         );
@@ -178,6 +174,8 @@ impl Book {
     pub fn cont_len(&self) -> usize { self.content.len() }
 
     fn valid(&self, n: usize) -> bool { self.chap_len() > n && n > 0 }
+
+    pub fn save(&self, _pb: PathBuf) { self.content.iter(); }
 }
 
 impl Default for Book {

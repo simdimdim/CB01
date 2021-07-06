@@ -24,6 +24,7 @@ git = "https://github.com/hecrj/iced"
 [dependencies.iced_native]
 git = "https://github.com/hecrj/iced"
 [dependencies.tokio]
+default-features = false
 features = ["fs", "time", "net", "macros", "rt-multi-thread"]
 version = "1.8.0"
 [dependencies.url]
