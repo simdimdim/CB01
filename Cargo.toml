@@ -26,7 +26,7 @@ git = "https://github.com/hecrj/iced"
 [dependencies.tokio]
 default-features = false
 features = ["fs", "time", "net", "macros", "rt-multi-thread"]
-version = "1.8.0"
+version = "1.8.1"
 [dependencies.url]
 features = ["serde"]
 version = "2.2.2"

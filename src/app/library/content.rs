@@ -59,24 +59,24 @@ impl Content {
         }
     }
 
-    pub async fn load(&mut self, path: PathBuf) -> Self {
-        if path.extension() == Some("jpg".as_ref()) {
+    pub async fn load(&mut self, pb: PathBuf) -> Self {
+        if pb.extension() == Some("jpg".as_ref()) {
             Content::Image {
-                pb:  path,
+                pb,
                 src: None,
             }
         } else {
             let mut buf = vec![];
             OpenOptions::new()
                 .read(true)
-                .open(&path)
+                .open(&pb)
                 .await
                 .expect("Missing content file.")
                 .read_to_end(&mut buf)
                 .await
                 .unwrap();
             Content::Text {
-                pb:   path,
+                pb,
                 src:  None,
                 text: String::from_utf8(buf).unwrap(),
             }

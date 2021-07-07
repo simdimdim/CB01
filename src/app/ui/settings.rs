@@ -1,6 +1,6 @@
 use iced::button;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum AppState {
     Settings,
     Reader,

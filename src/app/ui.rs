@@ -1,9 +1,11 @@
-use self::{data::AppData, settings::AppSettings};
+#![allow(unused_imports)]
+use self::{data::AppData, libview::LibView, settings::AppSettings};
 use crate::{settings::AppState, Library, APP_NAME};
 use directories_next::{ProjectDirs, UserDirs};
 use iced::{
     executor,
     keyboard::Modifiers,
+    pane_grid,
     scrollable,
     window::{
         self,
@@ -19,6 +21,7 @@ use iced::{
     Element,
     HorizontalAlignment,
     Length,
+    PaneGrid,
     Row,
     Scrollable,
     Subscription,
@@ -32,6 +35,7 @@ use iced_native::{
 use std::path::PathBuf;
 
 pub mod data;
+pub mod libview;
 pub mod settings;
 
 #[derive(Debug)]
@@ -41,6 +45,7 @@ pub struct App {
     scroll:   scrollable::State,
     data:     AppData,
     settings: AppSettings,
+    libview:  LibView,
 }
 impl App {
     fn new() -> Self {
@@ -50,6 +55,7 @@ impl App {
             scroll:   scrollable::State::new(),
             data:     Default::default(),
             settings: Default::default(),
+            libview:  Default::default(),
         }
     }
 }
@@ -58,9 +64,8 @@ impl App {
 pub enum Message {
     EventOccurred(iced_native::Event),
     Scrolled(f32),
-    SwitchToSettings,
-    SwitchToReader,
-    SwitchToLibrary,
+    Dragged(pane_grid::DragEvent),
+    Switch(AppState),
     FullscreenMode,
     SaveLibrary,
     Exit,
@@ -165,6 +170,18 @@ impl Application for App {
                             data.reversed = !data.reversed;
                         }
                         Keyboard(KeyPressed {
+                            key_code: KeyCode::D,
+                            modifiers:
+                                Modifiers {
+                                    control: true,
+                                    logo: false,
+                                    shift: false,
+                                    alt: false,
+                                },
+                        }) => {
+                            settings.dark = !settings.dark;
+                        }
+                        Keyboard(KeyPressed {
                             key_code: KeyCode::Home,
                             modifiers:
                                 Modifiers {
@@ -234,14 +251,14 @@ impl Application for App {
                     Message::Scrolled(off) => {
                         *offset = *off;
                     }
-                    Message::SwitchToSettings => {
-                        settings.state = AppState::Settings;
+                    Message::Switch(state) => {
+                        settings.state = *state;
                     }
-                    Message::SwitchToReader => {
-                        settings.state = AppState::Reader;
-                    }
-                    Message::SwitchToLibrary => {
-                        settings.state = AppState::Library;
+                    Message::Dragged(pane_grid::DragEvent::Dropped {
+                        pane,
+                        target,
+                    }) => {
+                        self.libview.panes.swap(&pane, &target);
                     }
                     _ => (),
                 }
@@ -266,6 +283,8 @@ impl Application for App {
                 ..
             } => draw_reader(scroll, data, settings),
             App {
+                library,
+                libview,
                 settings:
                     settings
                     @
@@ -274,7 +293,7 @@ impl Application for App {
                         ..
                     },
                 ..
-            } => draw_library(settings),
+            } => draw_library(library, libview, settings),
             App {
                 settings:
                     settings
@@ -387,16 +406,11 @@ fn handle_settings(settings: &mut AppSettings, _message: &Message) {
             settings.should_exit = true;
         }
         Message::Scrolled(_) => {}
-        Message::SwitchToSettings => {
-            settings.state = AppState::Settings;
-        }
-        Message::SwitchToReader => {
-            settings.state = AppState::Reader;
-        }
-        Message::SwitchToLibrary => {
-            settings.state = AppState::Library;
+        Message::Switch(state) => {
+            settings.state = *state;
         }
         Message::SaveLibrary => (),
+        _ => {}
     };
 }
 
@@ -432,8 +446,11 @@ fn draw_settings(settings: &mut AppSettings) -> Element<Message> {
         .align_y(Align::End)
         .into()
 }
-fn draw_library(settings: &mut AppSettings) -> Element<Message> {
-    let exit = Button::new(
+fn draw_library<'a>(
+    _library: &mut Library, libview: &'a mut LibView,
+    settings: &'a mut AppSettings,
+) -> Element<'a, Message> {
+    let _exit = Button::new(
         &mut settings.exitbtn,
         Text::new("Exit")
             .width(Length::Fill)
@@ -442,13 +459,7 @@ fn draw_library(settings: &mut AppSettings) -> Element<Message> {
     .width(Length::Units(80))
     .padding(8)
     .on_press(Message::Exit);
-    let content = Row::new().align_items(Align::Center).spacing(4).push(exit);
-    Container::new(content)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(Align::End)
-        .align_y(Align::End)
-        .into()
+    libview.view()
 }
 fn draw_reader<'a>(
     scroll: &'a mut scrollable::State, data: &'a mut AppData,

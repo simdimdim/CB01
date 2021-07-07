@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     sync::atomic::{AtomicU16, Ordering},
 };
 
@@ -16,9 +16,10 @@ pub(self) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
 pub struct Label(String);
 #[derive(Debug, Clone, Default)]
 pub struct Library {
-    pub titles: HashMap<Label, u16>,
-    pub books:  BTreeMap<u16, Book>,
-    pub num:    Id,
+    pub titles:      HashMap<Label, u16>,
+    pub books:       BTreeMap<u16, Book>,
+    pub collections: HashMap<String, HashSet<Id>>,
+    pub num:         Id,
 }
 
 impl Library {
