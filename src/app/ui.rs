@@ -96,175 +96,163 @@ impl Application for App {
     fn update(
         &mut self, message: Message, _clipboard: &mut Clipboard,
     ) -> Command<Message> {
-        match self {
-            App {
-                scroff: offset,
-                scroll,
-                settings,
-                data,
-                ..
-            } => {
-                match &message {
-                    Message::EventOccurred(event) => match event {
-                        Window(CloseRequested) => {
-                            settings.should_exit = true;
-                        }
-                        Keyboard(KeyPressed {
-                            key_code:
-                                KeyCode::Left |
-                                KeyCode::Up |
-                                KeyCode::PageUp |
-                                KeyCode::A |
-                                KeyCode::W,
-
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    shift: false,
-                                    alt: false,
-                                    logo: false,
-                                },
-                        }) => {
-                            *offset = (*offset -
-                                (data.current.len() as f32 /
-                                    settings.columns as f32 -
-                                    1.)
-                                .recip())
-                            .max(0.);
-                            scroll.snap_to(*offset);
-                        }
-                        Keyboard(KeyPressed {
-                            key_code:
-                                KeyCode::Right |
-                                KeyCode::Down |
-                                KeyCode::PageDown |
-                                KeyCode::D |
-                                KeyCode::S |
-                                KeyCode::Space,
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    shift: false,
-                                    alt: false,
-                                    logo: false,
-                                },
-                        }) => {
-                            *offset = (*offset +
-                                (data.current.len() as f32 /
-                                    settings.columns as f32 -
-                                    1.)
-                                .recip())
-                            .min(1.);
-                            scroll.snap_to(*offset);
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::F,
-                            modifiers:
-                                Modifiers {
-                                    control: true,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            data.reversed = !data.reversed;
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::D,
-                            modifiers:
-                                Modifiers {
-                                    control: true,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            settings.dark = !settings.dark;
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::Home,
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            *offset = 0.;
-                            scroll.snap_to(*offset);
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::End,
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            *offset = 1.;
-                            scroll.snap_to(*offset);
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::Numpad1,
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            settings.state = AppState::Library;
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::Numpad2,
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            settings.state = AppState::Reader;
-                        }
-                        Keyboard(KeyPressed {
-                            key_code: KeyCode::Numpad3,
-                            modifiers:
-                                Modifiers {
-                                    control: false,
-                                    logo: false,
-                                    shift: false,
-                                    alt: false,
-                                },
-                        }) => {
-                            settings.state = AppState::Settings;
-                        }
-                        _ => {}
-                    },
-                    Message::Exit => {
-                        settings.should_exit = true;
-                    }
-                    Message::Scrolled(off) => {
-                        *offset = *off;
-                    }
-                    Message::Switch(state) => {
-                        settings.state = *state;
-                    }
-                    Message::Dragged(pane_grid::DragEvent::Dropped {
-                        pane,
-                        target,
-                    }) => {
-                        self.libview.panes.swap(&pane, &target);
-                    }
-                    _ => (),
+        match &message {
+            Message::EventOccurred(event) => match event {
+                Window(CloseRequested) => {
+                    self.settings.should_exit = true;
                 }
-                handle_settings(settings, &message);
+                Keyboard(KeyPressed {
+                    key_code:
+                        KeyCode::Left |
+                        KeyCode::Up |
+                        KeyCode::PageUp |
+                        KeyCode::A |
+                        KeyCode::W,
+
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            shift: false,
+                            alt: false,
+                            logo: false,
+                        },
+                }) => {
+                    self.scroff = (self.scroff -
+                        (self.data.current.len() as f32 /
+                            self.settings.columns as f32 -
+                            1.)
+                        .recip())
+                    .max(0.);
+                    self.scroll.snap_to(self.scroff);
+                }
+                Keyboard(KeyPressed {
+                    key_code:
+                        KeyCode::Right |
+                        KeyCode::Down |
+                        KeyCode::PageDown |
+                        KeyCode::D |
+                        KeyCode::S |
+                        KeyCode::Space,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            shift: false,
+                            alt: false,
+                            logo: false,
+                        },
+                }) => {
+                    self.scroff = (self.scroff +
+                        (self.data.current.len() as f32 /
+                            self.settings.columns as f32 -
+                            1.)
+                        .recip())
+                    .min(1.);
+                    self.scroll.snap_to(self.scroff);
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::F,
+                    modifiers:
+                        Modifiers {
+                            control: true,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.data.reversed = !self.data.reversed;
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::D,
+                    modifiers:
+                        Modifiers {
+                            control: true,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.settings.dark = !self.settings.dark;
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::Home,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.scroff = 0.;
+                    self.scroll.snap_to(self.scroff);
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::End,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.scroff = 1.;
+                    self.scroll.snap_to(self.scroff);
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::Numpad1,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.settings.state = AppState::Library;
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::Numpad2,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.settings.state = AppState::Reader;
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::Numpad3,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.settings.state = AppState::Settings;
+                }
+                _ => {}
+            },
+            Message::Exit => {
+                self.settings.should_exit = true;
             }
+            Message::Scrolled(off) => {
+                self.scroff = *off;
+            }
+            Message::Switch(state) => {
+                self.settings.state = *state;
+            }
+            Message::Dragged(pane_grid::DragEvent::Dropped { pane, target }) => {
+                self.libview.panes.swap(&pane, &target);
+            }
+            _ => (),
         }
+        handle_settings(&mut self.settings, &message);
+
         Command::none()
     }
 
@@ -447,7 +435,7 @@ fn draw_settings(settings: &mut AppSettings) -> Element<Message> {
         .into()
 }
 fn draw_library<'a>(
-    _library: &mut Library, libview: &'a mut LibView,
+    library: &mut Library, libview: &'a mut LibView,
     settings: &'a mut AppSettings,
 ) -> Element<'a, Message> {
     let _exit = Button::new(
@@ -459,11 +447,14 @@ fn draw_library<'a>(
     .width(Length::Units(80))
     .padding(8)
     .on_press(Message::Exit);
+
+    let _lib = library.get_group("main");
+    // TODO: the rest of this
     libview.view()
 }
 fn draw_reader<'a>(
     scroll: &'a mut scrollable::State, data: &'a mut AppData,
-    settings: &mut AppSettings,
+    settings: &AppSettings,
 ) -> Element<'a, Message> {
     let re = data.reversed;
     let cn = data
