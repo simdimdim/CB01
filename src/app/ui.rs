@@ -257,41 +257,18 @@ impl Application for App {
     }
 
     fn view(&mut self) -> Element<Message> {
-        match self {
-            App {
-                scroll,
-                data,
-                settings:
-                    settings
-                    @
-                    AppSettings {
-                        state: AppState::Reader,
-                        ..
-                    },
-                ..
-            } => draw_reader(scroll, data, settings),
-            App {
-                library,
-                libview,
-                settings:
-                    settings
-                    @
-                    AppSettings {
-                        state: AppState::Library,
-                        ..
-                    },
-                ..
-            } => draw_library(library, libview, settings),
-            App {
-                settings:
-                    settings
-                    @
-                    AppSettings {
-                        state: AppState::Settings,
-                        ..
-                    },
-                ..
-            } => draw_settings(settings),
+        let App {
+            settings,
+            data,
+            scroll,
+            library,
+            libview,
+            ..
+        } = self;
+        match settings.state {
+            AppState::Settings => draw_settings(settings),
+            AppState::Reader => draw_reader(scroll, data, settings),
+            AppState::Library => draw_library(library, libview, settings),
         }
     }
 
