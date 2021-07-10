@@ -1,4 +1,4 @@
-use crate::{Message, };
+use crate::Message;
 use iced::{image::Handle, Element, Image};
 use reqwest::Url;
 use std::path::PathBuf;
@@ -61,10 +61,7 @@ impl Content {
 
     pub async fn load(&mut self, pb: PathBuf) -> Self {
         if pb.extension() == Some("jpg".as_ref()) {
-            Content::Image {
-                pb,
-                src: None,
-            }
+            Content::Image { pb, src: None }
         } else {
             let mut buf = vec![];
             OpenOptions::new()
@@ -77,7 +74,7 @@ impl Content {
                 .unwrap();
             Content::Text {
                 pb,
-                src:  None,
+                src: None,
                 text: String::from_utf8(buf).unwrap(),
             }
         }
