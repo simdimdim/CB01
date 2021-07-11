@@ -29,7 +29,6 @@ pub use self::{data::*, screen::*, settings::*};
 
 #[derive(Debug)]
 pub struct App {
-    library:  Library,
     data:     AppData,
     settings: AppSettings,
     screens:  Screens,
@@ -37,7 +36,6 @@ pub struct App {
 impl App {
     fn new() -> Self {
         Self {
-            library:  Library::default(),
             data:     Default::default(),
             settings: Default::default(),
             screens:  Screens::new(),
@@ -71,7 +69,7 @@ impl Application for App {
             .unwrap_or(PathBuf::from("C:\\Windows\\Fonts").as_path());
         let projdirs = ProjectDirs::from("", "", APP_NAME).unwrap();
         let _confdir = projdirs.config_dir();
-        app.library = library;
+        app.data.library = library;
         (app, Command::none())
     }
 
@@ -80,7 +78,8 @@ impl Application for App {
     fn update(
         &mut self, message: Message, clipboard: &mut Clipboard,
     ) -> Command<Message> {
-        match &message {
+        handle_settings(&mut self.settings, &message);
+        match message {
             Message::EventOccurred(event) => match event {
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F,
@@ -115,7 +114,13 @@ impl Application for App {
                             shift: false,
                             alt: false,
                         },
-                }) => self.screens.update(ViewA::ARead(ARead::Begin)),
+                }) => {
+                    return self.screens.update(
+                        &mut self.data,
+                        &mut self.settings,
+                        ViewA::ARead(ARead::Begin),
+                    );
+                }
                 Keyboard(KeyPressed {
                     key_code:
                         KeyCode::Left |
@@ -131,9 +136,14 @@ impl Application for App {
                             alt: false,
                             logo: false,
                         },
-                }) => self.screens.update(ViewA::ARead(ARead::Prev(
-                    self.data.current.len() as f32,
-                ))),
+                }) => {
+                    let cur = self.data.current.len() as f32;
+                    return self.screens.update(
+                        &mut self.data,
+                        &mut self.settings,
+                        ViewA::ARead(ARead::Prev(cur)),
+                    );
+                }
                 Keyboard(KeyPressed {
                     key_code:
                         KeyCode::Right |
@@ -149,9 +159,14 @@ impl Application for App {
                             alt: false,
                             logo: false,
                         },
-                }) => self.screens.update(ViewA::ARead(ARead::Next(
-                    self.data.current.len() as f32,
-                ))),
+                }) => {
+                    let cur = self.data.current.len() as f32;
+                    return self.screens.update(
+                        &mut self.data,
+                        &mut self.settings,
+                        ViewA::ARead(ARead::Next(cur)),
+                    );
+                }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::End,
                     modifiers:
@@ -161,7 +176,13 @@ impl Application for App {
                             shift: false,
                             alt: false,
                         },
-                }) => self.screens.update(ViewA::ARead(ARead::End)),
+                }) => {
+                    return self.screens.update(
+                        &mut self.data,
+                        &mut self.settings,
+                        ViewA::ARead(ARead::End),
+                    );
+                }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadSubtract,
                     modifiers:
@@ -171,7 +192,13 @@ impl Application for App {
                             shift: false,
                             alt: false,
                         },
-                }) => self.screens.update(ViewA::ARead(ARead::Less)),
+                }) => {
+                    return self.screens.update(
+                        &mut self.data,
+                        &mut self.settings,
+                        ViewA::ARead(ARead::Less),
+                    );
+                }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadAdd,
                     modifiers:
@@ -181,7 +208,13 @@ impl Application for App {
                             shift: false,
                             alt: false,
                         },
-                }) => self.screens.update(ViewA::ARead(ARead::More)),
+                }) => {
+                    return self.screens.update(
+                        &mut self.data,
+                        &mut self.settings,
+                        ViewA::ARead(ARead::More),
+                    );
+                }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Numpad1,
                     modifiers:
@@ -192,7 +225,8 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    self.update(Message::Switch(AppState::Library), clipboard);
+                    return self
+                        .update(Message::Switch(AppState::Library), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Numpad2,
@@ -204,7 +238,8 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    self.update(Message::Switch(AppState::Reader), clipboard);
+                    return self
+                        .update(Message::Switch(AppState::Reader), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Numpad3,
@@ -216,7 +251,8 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    self.update(Message::Switch(AppState::Settings), clipboard);
+                    return self
+                        .update(Message::Switch(AppState::Settings), clipboard);
                 }
                 _ => {}
             },
@@ -224,13 +260,14 @@ impl Application for App {
                 self.settings.should_exit = true;
             }
             Message::Switch(state) => {
-                self.screens.state = *state;
+                self.screens.state = state;
             }
-            Message::Update(a) => self.screens.update(*a),
+            Message::Update(a) => {
+                return self.screens.update(&mut self.data, &mut self.settings, a);
+            }
             Message::FullscreenMode => todo!(),
             Message::SaveLibrary => todo!(),
-        }
-        handle_settings(&mut self.settings, &message);
+        };
 
         Command::none()
     }
@@ -245,31 +282,20 @@ impl Application for App {
     }
 
     fn mode(&self) -> window::Mode {
-        match self {
-            App { settings, .. } => match settings.fullscreen {
-                false => Windowed,
-                true => Fullscreen,
-            },
+        match self.settings.fullscreen {
+            false => Windowed,
+            true => Fullscreen,
         }
     }
 
     fn background_color(&self) -> Color {
-        fn dark(b: bool) -> Color {
-            match b {
-                true => Color::BLACK,
-                false => Color::WHITE,
-            }
-        }
-        match self {
-            App { settings, .. } => dark(settings.dark),
+        match self.settings.dark {
+            true => Color::BLACK,
+            false => Color::WHITE,
         }
     }
 
-    fn should_exit(&self) -> bool {
-        match self {
-            App { settings, .. } => settings.should_exit,
-        }
-    }
+    fn should_exit(&self) -> bool { self.settings.should_exit }
 }
 
 fn handle_settings(settings: &mut AppSettings, message: &Message) {

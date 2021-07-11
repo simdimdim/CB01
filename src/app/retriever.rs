@@ -1,6 +1,6 @@
 use crate::{Book, Label};
 use chrono::Duration;
-use futures::future::OptionFuture;
+use futures::future::{join_all, OptionFuture};
 use reqwest::{Client, Url};
 use sites::Include;
 use std::{
@@ -9,6 +9,7 @@ use std::{
         BTreeMap,
         HashMap,
     },
+    convert::TryInto,
     sync::Arc,
 };
 use tokio::sync::Mutex;
@@ -35,7 +36,12 @@ impl Retriever {
     pub async fn get(&self, mut p: Page) -> Page {
         if p.req.is_none() {
             let h = self.finder(&p).headers();
-            let req = self.client.get(p.url.as_ref()).headers(h).build().unwrap();
+            let req = self
+                .client
+                .get(Arc::try_unwrap(p.url.clone()).unwrap())
+                .headers(h)
+                .build()
+                .unwrap();
             p.prep(req);
         }
         self.access(&p).await;
@@ -46,36 +52,44 @@ impl Retriever {
         page.num(self.finder(page))
     }
 
-    pub fn title(&self, page: &Page) -> Label { page.title(self.finder(page)) }
+    pub async fn title(&self, page: &Page) -> Label {
+        page.title(self.finder(page)).await
+    }
 
     pub async fn index(&self, page: &Page) -> Page {
-        let res: OptionFuture<_> =
-            page.index(self.finder(page)).map(|a| self.get(a)).into();
+        let res: OptionFuture<_> = page
+            .index(self.finder(page))
+            .await
+            .map(|a| self.get(a))
+            .into();
         res.await.expect("Couldn't resolve index")
     }
 
     pub async fn links(&self, page: &Page) -> Vec<Page> {
         let mut res = vec![];
-        for p in page.links(self.finder(page)) {
+        for p in page.links(self.finder(page)).await {
             res.push(self.get(p).await);
         }
         res
     }
 
     pub async fn next(&self, page: &Page) -> Option<Page> {
-        let res: OptionFuture<_> =
-            page.next(self.finder(page)).map(|a| self.get(a)).into();
+        let res: OptionFuture<_> = page
+            .next(self.finder(page))
+            .await
+            .map(|a| self.get(a))
+            .into();
         res.await
     }
 
-    pub fn text(&self, page: &Page) -> Vec<String> {
-        page.text(self.finder(page))
+    pub async fn text(&self, page: &Page) -> Vec<String> {
+        page.text(self.finder(page)).await
     }
 
     pub async fn images(&self, page: &Page) -> Vec<Page> {
         // use tokio::time::sleep;
         let mut res = vec![];
-        for p in page.images(self.finder(page)) {
+        for p in page.images(self.finder(page)).await {
             // sleep(std::time::Duration::from_secs_f32(0.125)).await;
             res.push(self.get(p).await);
         }
@@ -100,16 +114,20 @@ impl Retriever {
     }
 
     pub async fn new_book(&self, url: Url) -> (Label, Book) {
-        let init = self.get(url.into()).await;
-        let title = self.title(&init);
+        let u = url.into();
+        let init = self.get(u).await;
+        let title = self.title(&init).await;
         let index = self.index(&init).await;
         let mut bk = Book::new(Some(index));
-        let images = init.images(self.finder(&init));
+        let images = init.images(self.finder(&init).clone()).await;
         bk.chap_add(None, images.len());
-        bk.cont_add(
-            images.iter().map(|p| p.novel(self.finder(&p))).collect(),
-            None,
-        );
+        let cnt = join_all(
+            images
+                .into_iter()
+                .map(|p| async move { p.novel(self.finder(&p)).await }),
+        )
+        .await;
+        bk.cont_add(cnt, None);
         (title, bk)
     }
 }

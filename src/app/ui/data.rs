@@ -1,18 +1,21 @@
+use crate::{Content, Library, Retriever};
 use std::path::PathBuf;
-
-use crate::Content;
 
 #[derive(Debug, Clone)]
 pub struct AppData {
-    pub current:  Box<Vec<Content>>,
-    pub flipped:  bool,
-    pub reversed: bool,
+    pub library:   Library,
+    pub retriever: Retriever,
+    pub current:   Box<Vec<Content>>,
+    pub flipped:   bool,
+    pub reversed:  bool,
 }
 
 impl Default for AppData {
     fn default() -> Self {
         Self {
-            current:  Box::new(vec![
+            library:   Library::default(),
+            retriever: Retriever::default(),
+            current:   Box::new(vec![
                 Content::Image {
                     pb:  PathBuf::from("library/01.jpg"),
                     src: None,
@@ -102,8 +105,8 @@ impl Default for AppData {
                  *     src: None,
                  * }, */
             ]),
-            flipped:  false,
-            reversed: false,
+            flipped:   false,
+            reversed:  false,
         }
     }
 }

@@ -176,6 +176,10 @@ impl Book {
     fn valid(&self, n: usize) -> bool { self.chap_len() > n && n > 0 }
 
     pub fn save(&self, _pb: PathBuf) { self.content.iter(); }
+
+    pub fn current(&self) -> Range<Id, Content> {
+        self.cont_batch(self.chapters[0].range())
+    }
 }
 
 impl Default for Book {

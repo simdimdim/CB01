@@ -3,6 +3,7 @@ pub enum AppState {
     Settings,
     Reader,
     Library,
+    Add,
 }
 impl Default for AppState {
     fn default() -> Self { Self::Library }

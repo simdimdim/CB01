@@ -6,15 +6,16 @@ use std::{
     cell::RefCell,
     hash::{Hash, Hasher},
     str::FromStr,
+    sync::{Arc, Mutex},
 };
 use url::Host;
 
 #[derive(Debug)]
 pub struct Page {
-    pub url:  Url,
-    pub req:  Option<Request>,
-    pub html: RefCell<Option<String>>,
-    pub doc:  RefCell<Option<Document>>,
+    pub url:  Arc<Url>,
+    pub req:  Arc<Option<Request>>,
+    pub html: Arc<Mutex<Option<String>>>,
+    pub doc:  Arc<Mutex<Option<Document>>>,
     pub last: DateTime<Utc>,
 }
 
@@ -22,7 +23,7 @@ type Find<'a> = &'a Box<dyn Finder>;
 
 impl Page {
     pub fn prep(&mut self, re: Request) -> &mut Self {
-        self.req = Some(re);
+        self.req = Arc::new(Some(re));
         self
     }
 
@@ -30,12 +31,13 @@ impl Page {
     pub async fn fetch(&self, client: &Client) -> Self {
         // TODO: Better error recovery with a failures counter in Retriever
         let resp = client
-            .execute(self.req.as_ref().unwrap().try_clone().unwrap())
+            .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
             .await
             .unwrap();
         let html = resp.text().await.unwrap();
-        self.doc.replace(Some(html.as_str().into()));
-        self.html.replace(Some(html));
+
+        *self.doc.lock().unwrap() = Some(html.as_str().into());
+        *self.html.lock().unwrap() = Some(html);
         self.to_owned()
     }
 
@@ -43,12 +45,12 @@ impl Page {
     pub async fn fetch_solo(&self) -> Self {
         // TODO: Better error recovery with a failures counter in Retriever
         let resp = Client::new()
-            .execute(self.req.as_ref().unwrap().try_clone().unwrap())
+            .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
             .await
             .unwrap();
         let html = resp.text().await.unwrap();
-        self.doc.replace(Some(html.as_str().into()));
-        self.html.replace(Some(html));
+        *self.doc.lock().unwrap() = Some(html.as_str().into());
+        *self.html.lock().unwrap() = Some(html);
         self.to_owned()
     }
 
@@ -59,9 +61,9 @@ impl Page {
     }
 
     /// Free most of a Page
-    pub fn empty(&mut self) {
-        self.html.replace(None);
-        self.doc.replace(None);
+    pub async fn empty(&mut self) {
+        *self.doc.lock().unwrap() = None;
+        *self.html.lock().unwrap() = None;
     }
 
     /// Freshness check
@@ -73,17 +75,18 @@ impl Page {
     pub fn num(&self, find: Find) -> (u16, u16, String) { find.num(self) }
 
     /// Get the title with a Finder
-    pub fn title(&self, find: Find) -> Label {
+    pub async fn title(&self, find: Find<'_>) -> Label {
         self.doc
-            .borrow()
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|d| find.title(d))
             .unwrap_or_default()
     }
 
     /// Returns a Page leading the the index page of the chapter
-    pub fn index(&self, find: Find) -> Option<Self> {
-        let res = self.doc.borrow().as_ref().map(|d| {
+    pub async fn index(&self, find: Find<'_>) -> Option<Self> {
+        let res = self.doc.lock().unwrap().as_ref().map(|d| {
             find.index(d).unwrap_or({
                 // TODO: Alternatively, find links up or left from other links
                 // leading to the current page
@@ -120,32 +123,35 @@ impl Page {
     }
 
     /// Get the links from the lowest div with most links
-    pub fn links(&self, find: Find) -> Vec<Page> {
+    pub async fn links(&self, find: Find<'_>) -> Vec<Page> {
         self.doc
-            .borrow()
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|d| find.links(d))
             .unwrap_or_default()
     }
 
     /// Get next page
-    pub fn next(&self, find: Find) -> Option<Page> {
-        self.doc.borrow().as_ref().and_then(|d| find.next(d))
+    pub async fn next(&self, find: Find<'_>) -> Option<Page> {
+        self.doc.lock().unwrap().as_ref().and_then(|d| find.next(d))
     }
 
     /// Get text chapter
-    pub fn text(&self, find: Find) -> Vec<String> {
+    pub async fn text(&self, find: Find<'_>) -> Vec<String> {
         self.doc
-            .borrow()
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|d| find.text(d))
             .unwrap_or_default()
     }
 
     /// Get pages to images
-    pub fn images(&self, find: Find) -> Vec<Page> {
+    pub async fn images(&self, find: Find<'_>) -> Vec<Page> {
         self.doc
-            .borrow()
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|d| find.images(d))
             .unwrap_or_default()
@@ -154,7 +160,7 @@ impl Page {
     pub async fn image(&self, client: &Client) -> Box<Vec<u8>> {
         Box::new(
             client
-                .execute(self.req.as_ref().unwrap().try_clone().unwrap())
+                .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
                 .await
                 .unwrap()
                 .bytes()
@@ -164,10 +170,11 @@ impl Page {
         )
     }
 
-    pub fn novel(&self, find: Find<'_>) -> Box<Vec<u8>> {
+    pub async fn novel(&self, find: Find<'_>) -> Box<Vec<u8>> {
         Box::new(
             self.doc
-                .borrow()
+                .lock()
+                .unwrap()
                 .as_ref()
                 .map(|d| find.text(d).join("\n\n").bytes().collect::<Vec<_>>())
                 .unwrap_or_default(),
@@ -179,7 +186,9 @@ impl Clone for Page {
     fn clone(&self) -> Self {
         Self {
             url:  self.url.clone(),
-            req:  self.req.as_ref().map(|x| x.try_clone().unwrap()),
+            req:  Arc::new(
+                self.req.as_ref().as_ref().map(|x| x.try_clone().unwrap()),
+            ),
             html: self.html.clone(),
             doc:  self.doc.clone(),
             last: self.last.clone(),
@@ -189,10 +198,10 @@ impl Clone for Page {
 impl Default for Page {
     fn default() -> Self {
         Self {
-            url:  "http://codenova.ddns.net".parse().unwrap(),
-            req:  None,
-            html: RefCell::new(None),
-            doc:  RefCell::new(None),
+            url:  Arc::new("http://codenova.ddns.net".parse().unwrap()),
+            req:  Default::default(),
+            html: Default::default(),
+            doc:  Default::default(),
             last: Utc::now() - Duration::days(1),
         }
     }
@@ -201,7 +210,7 @@ impl Eq for Page {}
 impl PartialEq for Page {
     fn eq(&self, other: &Self) -> bool {
         self.url == other.url &&
-            self.html == other.html &&
+            *self.html.lock().unwrap() == *other.html.lock().unwrap() &&
             self.last == other.last
     }
 }
@@ -218,7 +227,7 @@ impl PartialOrd for Page {
 impl Hash for Page {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.url.hash(state);
-        self.html.borrow().hash(state);
+        self.html.lock().unwrap().hash(state);
         self.last.hash(state);
     }
 }
@@ -227,7 +236,7 @@ impl<T: Into<String>> From<T> for Page {
     fn from(s: T) -> Self {
         let mut ok = Self::default();
         match s.into().parse::<Url>() {
-            Ok(u) => ok.url = u,
+            Ok(u) => ok.url = Arc::new(u),
             Err(_) => (),
         }
         ok
@@ -238,7 +247,7 @@ impl FromStr for Page {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            url: s.parse()?,
+            url: Arc::new(s.parse()?),
             ..Default::default()
         })
     }

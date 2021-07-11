@@ -13,7 +13,7 @@ pub use content::*;
 pub(self) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Label(String);
+pub struct Label(pub String);
 #[derive(Debug, Clone, Default)]
 pub struct Library {
     pub titles: HashMap<Label, Id>,
@@ -36,6 +36,8 @@ impl Library {
             }
         }
     }
+
+    pub fn book_by_id(&mut self, id: Id) -> &Book { self.books.get(&id).unwrap() }
 
     pub fn book_mut(&mut self, name: &Label) -> &mut Book {
         let id = self.book_id(name).clone();

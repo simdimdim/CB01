@@ -1,9 +1,10 @@
-use crate::{  Message, ViewA};
+use crate::{Message, ViewA};
 use iced::{
     button,
     Align,
     Button,
     Checkbox,
+    Command,
     Container,
     Element,
     HorizontalAlignment,
@@ -38,7 +39,7 @@ impl SSet {
 
     pub fn view(&mut self) -> Element<Message> {
         let checkbox = Checkbox::new(self.darkmodebool, "Dark mode", |a| {
-            Message::Update(ViewA::ASet(ASet::ToggleDark(a)))
+            ASet::ToggleDark(a).into()
         })
         .width(Length::Fill);
         let exit = Button::new(
@@ -74,7 +75,7 @@ impl SSet {
             .into()
     }
 
-    pub fn update(&mut self, message: ASet) {
+    pub fn update(&mut self, message: ASet) -> Command<Message> {
         match message {
             ASet::ToggleDark(b) => self.darkmodebool = b,
             ASet::Dragged(iced::pane_grid::DragEvent::Dropped {
@@ -85,7 +86,11 @@ impl SSet {
             }
             ASet::Dragged(_) => {}
         }
+        Command::none()
     }
+}
+impl From<ASet> for Message {
+    fn from(a: ASet) -> Self { Message::Update(ViewA::ASet(a)) }
 }
 
 impl std::fmt::Debug for SSet {

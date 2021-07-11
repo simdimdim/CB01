@@ -2,6 +2,7 @@ use crate::{ASet, Book, Id, Message, ViewA};
 use iced::{
     pane_grid::{Content, State},
     Color,
+    Command,
     Container,
     Element,
     Length,
@@ -35,17 +36,18 @@ impl SLib {
         )
         .width(Length::Fill)
         .height(Length::Fill)
-        .on_drag(|a| Message::Update(ViewA::ASet(ASet::Dragged(a))));
+        .on_drag(|a| ASet::Dragged(a).into());
         Container::new(pane_grid)
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
     }
 
-    pub fn update(&mut self, message: ALib) {
+    pub fn update(&mut self, message: ALib) -> Command<Message> {
         match message {
-            ALib::Select(_) => todo!(),
+            ALib::Select(_) => (),
         }
+        Command::none()
     }
 }
 impl Book {
@@ -66,4 +68,7 @@ impl Book {
             .center_y()
             .into()
     }
+}
+impl From<ALib> for Message {
+    fn from(a: ALib) -> Self { Message::Update(ViewA::ALib(a)) }
 }

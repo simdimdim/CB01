@@ -1,11 +1,22 @@
-use crate::{data::AppData, AppSettings, Message, ViewA};
-use iced::{scrollable, Align, Container, Element, Length, Row, Scrollable};
+use crate::{data::AppData, AppSettings, Book, Label, Message, ViewA};
+use iced::{
+    scrollable,
+    Align,
+    Command,
+    Container,
+    Element,
+    Length,
+    Row,
+    Scrollable,
+};
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct SRead {
     pub scroff: f32,
     pub scroll: scrollable::State,
     pub per:    u16,
+    pub book:   Option<Label>,
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ARead {
@@ -24,6 +35,7 @@ impl SRead {
             scroff: 0f32,
             scroll: scrollable::State::new(),
             per:    1,
+            book:   None,
         }
     }
 
@@ -37,9 +49,7 @@ impl SRead {
         let cn = data.current.chunks_mut(self.per.max(1) as usize).fold(
             Scrollable::new(&mut self.scroll)
                 .align_items(Align::Center)
-                .on_scroll(move |off| {
-                    Message::Update(ViewA::ARead(ARead::Scrolled(off)))
-                }),
+                .on_scroll(move |off| ARead::Scrolled(off).into()),
             |mut content, ch| {
                 if re {
                     ch.reverse();
@@ -71,7 +81,7 @@ impl SRead {
             .into()
     }
 
-    pub fn update(&mut self, message: ARead) {
+    pub fn update(&mut self, message: ARead) -> Command<Message> {
         match message {
             ARead::Scrolled(off) => {
                 self.scroff = off;
@@ -103,5 +113,9 @@ impl SRead {
                 self.per = 1.max(self.per.saturating_sub(1));
             }
         }
+        Command::none()
     }
+}
+impl From<ARead> for Message {
+    fn from(a: ARead) -> Self { Message::Update(ViewA::ARead(a)) }
 }
