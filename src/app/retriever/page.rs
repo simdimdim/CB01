@@ -15,7 +15,6 @@ pub struct Page {
     pub url:  Arc<Url>,
     pub req:  Arc<Option<Request>>,
     pub html: Arc<Mutex<Option<String>>>,
-    pub doc:  Arc<Mutex<Option<Document>>>,
     pub last: DateTime<Utc>,
 }
 
@@ -34,10 +33,7 @@ impl Page {
             .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
             .await
             .unwrap();
-        let html = resp.text().await.unwrap();
-
-        *self.doc.lock().unwrap() = Some(html.as_str().into());
-        *self.html.lock().unwrap() = Some(html);
+        *self.html.lock().unwrap() = Some(resp.text().await.unwrap());
         self.to_owned()
     }
 
@@ -48,23 +44,22 @@ impl Page {
             .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
             .await
             .unwrap();
-        let html = resp.text().await.unwrap();
-        *self.doc.lock().unwrap() = Some(html.as_str().into());
-        *self.html.lock().unwrap() = Some(html);
+        *self.html.lock().unwrap() = Some(resp.text().await.unwrap());
         self.to_owned()
     }
 
     /// Get the `example.com` from `http://example.com/path/`
     /// would fail for http://localhost/path
     pub fn domain(&self) -> Host {
-        self.url.host().map(|s| s.to_owned()).expect("No host.")
+        self.url
+            .clone()
+            .host()
+            .map(|s| s.to_owned())
+            .expect("No host.")
     }
 
     /// Free most of a Page
-    pub async fn empty(&mut self) {
-        *self.doc.lock().unwrap() = None;
-        *self.html.lock().unwrap() = None;
-    }
+    pub async fn empty(&mut self) { *self.html.lock().unwrap() = None; }
 
     /// Freshness check
     pub fn is_old(&mut self) -> bool {
@@ -76,7 +71,7 @@ impl Page {
 
     /// Get the title with a Finder
     pub async fn title(&self, find: Find<'_>) -> Label {
-        self.doc
+        self.html
             .lock()
             .unwrap()
             .as_ref()
@@ -86,45 +81,48 @@ impl Page {
 
     /// Returns a Page leading the the index page of the chapter
     pub async fn index(&self, find: Find<'_>) -> Option<Self> {
-        let res = self.doc.lock().unwrap().as_ref().map(|d| {
-            find.index(d).unwrap_or({
-                // TODO: Alternatively, find links up or left from other links
-                // leading to the current page
-                let base = self.url.origin().ascii_serialization();
-                let mut index = self
-                    .url
-                    .path_segments()
-                    .unwrap()
-                    .rev()
-                    .fold((Vec::new(), 0, 0), |mut acc, s| {
-                        if s.to_lowercase().contains("chapter") {
-                            acc.1 += 1;
-                        } else {
-                            if acc.1 != 0 || acc.2 > 1 {
-                                acc.0.push(s);
+        let res = self.html.lock().unwrap().as_ref().map(|d| {
+            {
+                find.index(d).unwrap_or({
+                    // TODO: Alternatively, find links up or left from other
+                    // links leading to the current
+                    // page
+                    let base = self.url.origin().ascii_serialization();
+                    let mut index = self
+                        .url
+                        .path_segments()
+                        .unwrap()
+                        .rev()
+                        .fold((Vec::new(), 0, 0), |mut acc, s| {
+                            if s.to_lowercase().contains("chapter") {
+                                acc.1 += 1;
+                            } else {
+                                if acc.1 != 0 || acc.2 > 1 {
+                                    acc.0.push(s);
+                                }
                             }
-                        }
-                        acc.2 += 1;
-                        acc
-                    })
-                    .0;
-                index.push(&base);
-                index
-                    .iter()
-                    .rev()
-                    .map(|&a| a)
-                    .collect::<Vec<_>>()
-                    .join("/")
-                    .parse()
-                    .expect("Couldn't resolve Index.")
-            })
+                            acc.2 += 1;
+                            acc
+                        })
+                        .0;
+                    index.push(&base);
+                    index
+                        .iter()
+                        .rev()
+                        .map(|&a| a)
+                        .collect::<Vec<_>>()
+                        .join("/")
+                        .parse()
+                        .expect("Couldn't resolve Index.")
+                })
+            }
         });
         res
     }
 
     /// Get the links from the lowest div with most links
     pub async fn links(&self, find: Find<'_>) -> Vec<Page> {
-        self.doc
+        self.html
             .lock()
             .unwrap()
             .as_ref()
@@ -134,12 +132,16 @@ impl Page {
 
     /// Get next page
     pub async fn next(&self, find: Find<'_>) -> Option<Page> {
-        self.doc.lock().unwrap().as_ref().and_then(|d| find.next(d))
+        self.html
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|d| find.next(d))
     }
 
     /// Get text chapter
     pub async fn text(&self, find: Find<'_>) -> Vec<String> {
-        self.doc
+        self.html
             .lock()
             .unwrap()
             .as_ref()
@@ -149,7 +151,7 @@ impl Page {
 
     /// Get pages to images
     pub async fn images(&self, find: Find<'_>) -> Vec<Page> {
-        self.doc
+        self.html
             .lock()
             .unwrap()
             .as_ref()
@@ -172,7 +174,7 @@ impl Page {
 
     pub async fn novel(&self, find: Find<'_>) -> Box<Vec<u8>> {
         Box::new(
-            self.doc
+            self.html
                 .lock()
                 .unwrap()
                 .as_ref()
@@ -190,7 +192,6 @@ impl Clone for Page {
                 self.req.as_ref().as_ref().map(|x| x.try_clone().unwrap()),
             ),
             html: self.html.clone(),
-            doc:  self.doc.clone(),
             last: self.last.clone(),
         }
     }
@@ -201,7 +202,6 @@ impl Default for Page {
             url:  Arc::new("http://codenova.ddns.net".parse().unwrap()),
             req:  Default::default(),
             html: Default::default(),
-            doc:  Default::default(),
             last: Utc::now() - Duration::days(1),
         }
     }

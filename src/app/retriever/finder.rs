@@ -8,7 +8,7 @@ use select::{
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultFinder;
 
-type Input<'a> = &'a Document;
+type Input<'a> = &'a String;
 
 pub trait Finder: std::fmt::Debug + Send + Sync {
     fn pred(&self) -> &str { "Next" }
@@ -47,7 +47,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         }
     }
     fn title(&self, doc: Input) -> Label {
-        let title = doc
+        let title = Document::from(doc.as_str())
             .select(Name("title"))
             .into_selection()
             .first()
@@ -68,23 +68,25 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
     }
     fn index(&self, _doc: Input) -> Option<Page> { None }
     fn links(&self, doc: Input) -> Vec<Page> {
-        doc.select(Descendant(
-            Name("div"),
-            Or(Name("p"), Or(Name("table"), Name("ul"))),
-        ))
-        .map(|a| a.select(Name("a")).into_selection())
-        .max_by(|a, b| a.len().cmp(&b.len()))
-        .unwrap()
-        .iter()
-        .filter_map(|a| a.attr("href"))
-        .map(|a| a.to_string())
-        .map(Into::into)
-        .collect()
+        Document::from(doc.as_str())
+            .select(Descendant(
+                Name("div"),
+                Or(Name("p"), Or(Name("table"), Name("ul"))),
+            ))
+            .map(|a| a.select(Name("a")).into_selection())
+            .max_by(|a, b| a.len().cmp(&b.len()))
+            .unwrap()
+            .iter()
+            .filter_map(|a| a.attr("href"))
+            .map(|a| a.to_string())
+            .map(Into::into)
+            .collect()
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
     fn next(&self, doc: Input) -> Option<Page> {
-        doc.select(Child(Name("a"), Text))
+        Document::from(doc.as_str())
+            .select(Child(Name("a"), Text))
             .filter(|a| a.text().contains(self.pred()))
             .map(|a| {
                 Page::from(a.parent().unwrap().attr("href").unwrap().to_string())
@@ -94,7 +96,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         similar links */
     }
     fn text(&self, doc: Input) -> Vec<String> {
-        doc.select(Child(Name("div"), Name("p")))
+        Document::from(doc.as_str())
+            .select(Child(Name("div"), Name("p")))
             .map(|a| a.parent().unwrap().children().into_selection())
             .max_by(|a, b| a.len().cmp(&b.len()))
             .unwrap()
@@ -104,7 +107,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .collect()
     }
     fn images(&self, doc: Input) -> Vec<Page> {
-        doc.select(Child(Name("div"), Name("img")))
+        Document::from(doc.as_str())
+            .select(Child(Name("div"), Name("img")))
             .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
             .max_by(|a, b| a.len().cmp(&b.len()))
             .unwrap()

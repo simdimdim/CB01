@@ -23,7 +23,8 @@ pub struct SAdd {
 pub enum AAdd {
     Add(Id),
     Fetch(Url),
-    Update(Id),
+    UpdateTitle(Label),
+    UpdateBook(Label, Book),
     Refresh(Id),
     Loading,
 }
@@ -68,16 +69,22 @@ impl SAdd {
     }
 
     pub fn update(
-        &mut self, _data: &mut AppData, message: AAdd,
+        &mut self, data: &mut AppData, message: AAdd,
     ) -> Command<Message> {
         match message {
-            AAdd::Fetch(_a) => {
-                // let (title, book) = Command::from(data.retriever.new_book(a));
-                // self.title = title.0;
-                // self.book = Some(book);
+            AAdd::Fetch(a) => {
+                let r = data.retriever.clone();
+                Command::perform(
+                    async move { r.new_book(a).await },
+                    move |(title, book)| AAdd::UpdateBook(title, book),
+                );
             }
             AAdd::Add(_) => todo!(),
-            AAdd::Update(_) => todo!(),
+            AAdd::UpdateTitle(t) => self.title = t.0,
+            AAdd::UpdateBook(t, b) => {
+                self.title = t.0;
+                self.book = Some(b);
+            }
             AAdd::Refresh(_) => todo!(),
             AAdd::Loading => todo!(),
         }
