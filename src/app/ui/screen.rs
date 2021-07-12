@@ -33,7 +33,7 @@ impl<'a> Screens {
             slib:  SLib::new(),
             sread: SRead::new(),
             sadd:  SAdd::new(),
-            state: AppState::Library,
+            state: AppState::Add,
         }
     }
 
@@ -74,18 +74,10 @@ impl<'a> Screens {
                 );
             }
             ViewA::Switch(s) => self.state = s,
-            ViewA::ASet(a) => {
-                self.sset.update(a);
-            }
-            ViewA::ARead(a) => {
-                self.sread.update(a);
-            }
-            ViewA::ALib(a) => {
-                self.slib.update(a);
-            }
-            ViewA::AAdd(_a) => {
-                // Command::from_future(self.sadd.update(data,a), a);
-            }
+            ViewA::ASet(a) => return self.sset.update(a),
+            ViewA::ARead(a) => return self.sread.update(a),
+            ViewA::ALib(a) => return self.slib.update(a),
+            ViewA::AAdd(a) => return self.sadd.update(data, a),
         };
         Command::none()
     }

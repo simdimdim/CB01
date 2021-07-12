@@ -49,7 +49,7 @@ impl SAdd {
             Button::new(&mut self.addbtn, Text::new("Add").width(Length::Fill))
                 .width(Length::Units(80))
                 .on_press(
-                    AAdd::Add(
+                    AAdd::Fetch(
                         "https://zinmanga.com/manga/first-miss-reborn/chapter-1/"
                             .parse()
                             .unwrap(),
@@ -74,9 +74,9 @@ impl SAdd {
         match message {
             AAdd::Fetch(a) => {
                 let r = data.retriever.clone();
-                Command::perform(
+                return Command::perform(
                     async move { r.new_book(a).await },
-                    move |(title, book)| AAdd::UpdateBook(title, book),
+                    move |(title, book)| AAdd::UpdateBook(title, book).into(),
                 );
             }
             AAdd::Add(_) => todo!(),

@@ -36,12 +36,7 @@ impl Retriever {
     pub async fn get(&self, mut p: Page) -> Page {
         if p.req.is_none() {
             let h = self.finder(&p).headers();
-            let req = self
-                .client
-                .get(Arc::try_unwrap(p.url.clone()).unwrap())
-                .headers(h)
-                .build()
-                .unwrap();
+            let req = self.client.get(p.url.clone()).headers(h).build().unwrap();
             p.prep(req);
         }
         self.access(&p).await;
@@ -114,8 +109,7 @@ impl Retriever {
     }
 
     pub async fn new_book(&self, url: Url) -> (Label, Book) {
-        let u = url.into();
-        let init = self.get(u).await;
+        let init = self.get(url.into()).await;
         let title = self.title(&init).await;
         let index = self.index(&init).await;
         let mut bk = Book::new(Some(index));

@@ -15,6 +15,7 @@ use iced::{
     Subscription,
 };
 use iced_native::{
+    executor::Tokio,
     keyboard::{Event::KeyPressed, KeyCode},
     window::Event::{self, CloseRequested},
     Event::{Keyboard, Window},
@@ -54,7 +55,7 @@ pub enum Message {
 }
 
 impl Application for App {
-    type Executor = executor::Default;
+    type Executor = Tokio;
     type Flags = ();
     type Message = Message;
 
@@ -115,11 +116,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self.screens.update(
-                        &mut self.data,
-                        &mut self.settings,
-                        ViewA::ARead(ARead::Begin),
-                    );
+                    self.update(ARead::Begin.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code:
@@ -138,11 +135,7 @@ impl Application for App {
                         },
                 }) => {
                     let cur = self.data.current.len() as f32;
-                    return self.screens.update(
-                        &mut self.data,
-                        &mut self.settings,
-                        ViewA::ARead(ARead::Prev(cur)),
-                    );
+                    self.update(ARead::Prev(cur).into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code:
@@ -161,11 +154,7 @@ impl Application for App {
                         },
                 }) => {
                     let cur = self.data.current.len() as f32;
-                    return self.screens.update(
-                        &mut self.data,
-                        &mut self.settings,
-                        ViewA::ARead(ARead::Next(cur)),
-                    );
+                    self.update(ARead::Next(cur).into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::End,
@@ -177,11 +166,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self.screens.update(
-                        &mut self.data,
-                        &mut self.settings,
-                        ViewA::ARead(ARead::End),
-                    );
+                    self.update(ARead::End.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadSubtract,
@@ -193,11 +178,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self.screens.update(
-                        &mut self.data,
-                        &mut self.settings,
-                        ViewA::ARead(ARead::Less),
-                    );
+                    self.update(ARead::Less.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadAdd,
@@ -209,11 +190,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self.screens.update(
-                        &mut self.data,
-                        &mut self.settings,
-                        ViewA::ARead(ARead::More),
-                    );
+                    self.update(ARead::More.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Numpad1,
@@ -225,8 +202,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self
-                        .update(Message::Switch(AppState::Library), clipboard);
+                    self.update(AppState::Reader.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Numpad2,
@@ -238,8 +214,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self
-                        .update(Message::Switch(AppState::Reader), clipboard);
+                    self.update(AppState::Reader.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Numpad3,
@@ -251,8 +226,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    return self
-                        .update(Message::Switch(AppState::Settings), clipboard);
+                    self.update(AppState::Reader.into(), clipboard);
                 }
                 _ => {}
             },
@@ -263,7 +237,11 @@ impl Application for App {
                 self.screens.state = state;
             }
             Message::Update(a) => {
-                return self.screens.update(&mut self.data, &mut self.settings, a);
+                return self.screens.update(
+                    &mut self.data,
+                    &mut self.settings,
+                    a,
+                );
             }
             Message::FullscreenMode => todo!(),
             Message::SaveLibrary => todo!(),

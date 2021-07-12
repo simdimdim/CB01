@@ -1,3 +1,5 @@
+use crate::Message;
+
 #[derive(Debug, Copy, Clone)]
 pub enum AppState {
     Settings,
@@ -7,6 +9,9 @@ pub enum AppState {
 }
 impl Default for AppState {
     fn default() -> Self { Self::Library }
+}
+impl From<AppState> for Message {
+    fn from(a: AppState) -> Self { Message::Switch(a) }
 }
 
 #[derive(Debug, Clone)]

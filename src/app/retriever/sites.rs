@@ -6,10 +6,7 @@ use url::Host;
 pub(crate) struct Include;
 impl Include {
     pub fn custom(hm: &mut HashMap<Host, Box<dyn Finder>>) {
-        hm.insert(
-            Host::parse("https://manganato.com/").unwrap(),
-            Box::new(Manganato),
-        );
+        hm.insert(Host::parse("manganato.com").unwrap(), Box::new(Manganato));
     }
 }
 

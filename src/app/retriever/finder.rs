@@ -5,9 +5,6 @@ use select::{
     predicate::{Child, Descendant, Name, Or, Text},
 };
 
-#[derive(Debug, Clone, Default, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DefaultFinder;
-
 type Input<'a> = &'a String;
 
 pub trait Finder: std::fmt::Debug + Send + Sync {
@@ -113,7 +110,15 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .max_by(|a, b| a.len().cmp(&b.len()))
             .unwrap()
             .iter()
-            .map(|a| a.attr("src").unwrap().to_string())
+            .map(|a| {
+                if let Some(n) = a.attr("data-src") {
+                    n.to_owned()
+                } else {
+                    a.attr("data-src")
+                        .expect("couldn't find image data-src")
+                        .to_owned()
+                }
+            })
             .map(Into::into)
             .collect()
         /* TODO: Similar to index() add a check for links similarity */
@@ -121,4 +126,6 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
     fn headers(&self) -> HeaderMap { HeaderMap::new() }
 }
 
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DefaultFinder;
 impl Finder for DefaultFinder {}

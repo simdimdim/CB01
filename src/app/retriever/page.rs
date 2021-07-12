@@ -12,7 +12,7 @@ use url::Host;
 
 #[derive(Debug)]
 pub struct Page {
-    pub url:  Arc<Url>,
+    pub url:  Url,
     pub req:  Arc<Option<Request>>,
     pub html: Arc<Mutex<Option<String>>>,
     pub last: DateTime<Utc>,
@@ -199,7 +199,7 @@ impl Clone for Page {
 impl Default for Page {
     fn default() -> Self {
         Self {
-            url:  Arc::new("http://codenova.ddns.net".parse().unwrap()),
+            url:  "http://codenova.ddns.net".parse().unwrap(),
             req:  Default::default(),
             html: Default::default(),
             last: Utc::now() - Duration::days(1),
@@ -236,7 +236,7 @@ impl<T: Into<String>> From<T> for Page {
     fn from(s: T) -> Self {
         let mut ok = Self::default();
         match s.into().parse::<Url>() {
-            Ok(u) => ok.url = Arc::new(u),
+            Ok(u) => ok.url = u,
             Err(_) => (),
         }
         ok
@@ -247,7 +247,7 @@ impl FromStr for Page {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            url: Arc::new(s.parse()?),
+            url: s.parse()?,
             ..Default::default()
         })
     }
