@@ -180,6 +180,11 @@ impl Book {
     pub fn current(&self) -> Range<Id, Content> {
         self.cont_batch(self.chapters[0].range())
     }
+
+    pub fn advance_by(&mut self, n: Id) -> Range<Id, Content> {
+        self.chapters[0].offset += self.chapters[0].offset.saturating_add(n);
+        self.cont_batch(self.last().range())
+    }
 }
 
 impl Default for Book {

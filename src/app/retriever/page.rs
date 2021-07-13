@@ -10,19 +10,25 @@ use std::{
 };
 use url::Host;
 
+/// Url holder with convenience methods for extractince elements of interest from
+/// the url's html
+///
+/// it's also aware when it was last accessed
 #[derive(Debug)]
 pub struct Page {
     pub url:  Url,
-    pub req:  Arc<Option<Request>>,
+    pub req:  Option<Request>,
     pub html: Arc<Mutex<Option<String>>>,
-    pub last: DateTime<Utc>,
+    pub last: Arc<Mutex<DateTime<Utc>>>,
 }
 
+/// Shorthand for Finder
 type Find<'a> = &'a Box<dyn Finder>;
 
 impl Page {
+    /// Load the page with a Request
     pub fn prep(&mut self, re: Request) -> &mut Self {
-        self.req = Arc::new(Some(re));
+        self.req = Some(re);
         self
     }
 
@@ -30,10 +36,11 @@ impl Page {
     pub async fn fetch(&self, client: &Client) -> Self {
         // TODO: Better error recovery with a failures counter in Retriever
         let resp = client
-            .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
+            .execute(self.req.as_ref().unwrap().try_clone().unwrap())
             .await
             .unwrap();
         *self.html.lock().unwrap() = Some(resp.text().await.unwrap());
+        *self.last.lock().unwrap() = Utc::now();
         self.to_owned()
     }
 
@@ -41,7 +48,7 @@ impl Page {
     pub async fn fetch_solo(&self) -> Self {
         // TODO: Better error recovery with a failures counter in Retriever
         let resp = Client::new()
-            .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
+            .execute(self.req.as_ref().unwrap().try_clone().unwrap())
             .await
             .unwrap();
         *self.html.lock().unwrap() = Some(resp.text().await.unwrap());
@@ -63,7 +70,7 @@ impl Page {
 
     /// Freshness check
     pub fn is_old(&mut self) -> bool {
-        Utc::now() - self.last > Duration::minutes(10)
+        Utc::now() - *self.last.lock().unwrap() > Duration::minutes(10)
     }
 
     /// Get the chapter,page number (and index?)
@@ -159,6 +166,7 @@ impl Page {
             .unwrap_or_default()
     }
 
+    /// Download a single image from a Page with an url leading to an image
     pub async fn image(&self, client: &Client) -> Box<Vec<u8>> {
         Box::new(
             client
@@ -172,28 +180,39 @@ impl Page {
         )
     }
 
+    /// Get a text chapter
     pub async fn novel(&self, find: Find<'_>) -> Box<Vec<u8>> {
         Box::new(
             self.html
                 .lock()
                 .unwrap()
                 .as_ref()
-                .map(|d| find.text(d).join("\n\n").bytes().collect::<Vec<_>>())
+                .map(|d| find.text(d).join("\n\n").bytes().collect())
                 .unwrap_or_default(),
         )
     }
 }
 
-impl Clone for Page {
-    fn clone(&self) -> Self {
-        Self {
-            url:  self.url.clone(),
-            req:  Arc::new(
-                self.req.as_ref().as_ref().map(|x| x.try_clone().unwrap()),
-            ),
-            html: self.html.clone(),
-            last: self.last.clone(),
-        }
+impl Eq for Page {}
+impl PartialEq for Page {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url &&
+            *self.html.lock().unwrap() == *other.html.lock().unwrap() &&
+            *self.last.lock().unwrap() == *other.last.lock().unwrap()
+    }
+}
+impl Ord for Page {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (&self.url, *self.last.lock().unwrap())
+            .cmp(&(&other.url, *other.last.lock().unwrap()))
+    }
+}
+impl PartialOrd for Page {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(
+            (&self.url, *self.last.lock().unwrap())
+                .cmp(&(&other.url, *other.last.lock().unwrap())),
+        )
     }
 }
 impl Default for Page {
@@ -202,33 +221,25 @@ impl Default for Page {
             url:  "http://codenova.ddns.net".parse().unwrap(),
             req:  Default::default(),
             html: Default::default(),
-            last: Utc::now() - Duration::days(1),
+            last: Arc::new(Mutex::new(Utc::now() - Duration::days(1))),
         }
     }
 }
-impl Eq for Page {}
-impl PartialEq for Page {
-    fn eq(&self, other: &Self) -> bool {
-        self.url == other.url &&
-            *self.html.lock().unwrap() == *other.html.lock().unwrap() &&
-            self.last == other.last
-    }
-}
-impl Ord for Page {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (&self.url, self.last).cmp(&(&other.url, other.last))
-    }
-}
-impl PartialOrd for Page {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some((&self.url, self.last).cmp(&(&other.url, other.last)))
+impl Clone for Page {
+    fn clone(&self) -> Self {
+        Self {
+            url:  self.url.clone(),
+            req:  self.req.as_ref().map(|x| x.try_clone().unwrap()),
+            html: self.html.clone(),
+            last: self.last.clone(),
+        }
     }
 }
 impl Hash for Page {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.url.hash(state);
         self.html.lock().unwrap().hash(state);
-        self.last.hash(state);
+        self.last.lock().unwrap().hash(state);
     }
 }
 

@@ -12,8 +12,7 @@ use iced::{
 
 #[derive(Debug)]
 pub struct SLib {
-    pub panes:    State<Book>,
-    pub modified: bool,
+    pub panes: State<Book>,
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ALib {
@@ -23,10 +22,7 @@ pub enum ALib {
 impl SLib {
     pub fn new() -> Self {
         let (panes, _) = State::new(Book::default());
-        Self {
-            panes,
-            modified: false,
-        }
+        Self { panes }
     }
 
     pub fn view(&mut self) -> Element<Message> {

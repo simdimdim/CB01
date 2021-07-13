@@ -28,7 +28,6 @@ pub mod settings;
 
 pub use self::{data::*, screen::*, settings::*};
 
-#[derive(Debug)]
 pub struct App {
     data:     AppData,
     settings: AppSettings,

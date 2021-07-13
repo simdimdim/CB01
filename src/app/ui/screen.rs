@@ -8,7 +8,6 @@ pub mod sset;
 
 pub use self::{sadd::*, slib::*, sread::*, sset::*};
 
-#[derive(Debug)]
 pub struct Screens {
     pub sset:  SSet,
     pub slib:  SLib,
@@ -23,7 +22,6 @@ pub enum ViewA {
     ARead(ARead),
     ALib(ALib),
     AAdd(AAdd),
-    Select(Id),
 }
 
 impl<'a> Screens {
@@ -44,34 +42,33 @@ impl<'a> Screens {
             AppState::Settings => self.sset.view(),
             AppState::Reader => self.sread.view(data, settings),
             AppState::Library => self.slib.view(),
-            AppState::Add => self.sadd.view(data),
+            AppState::Add => self.sadd.view(),
         }
     }
 
     pub fn update(
-        &mut self, data: &mut AppData, _settings: &AppSettings, message: ViewA,
+        &mut self, data: &mut AppData, settings: &AppSettings, message: ViewA,
     ) -> Command<Message> {
-        match &message {
-            ViewA::ASet(_) => todo!(),
-            ViewA::ARead(_) => todo!(),
-            ViewA::ALib(ALib::Select(_id)) => {
-                self.state = AppState::Reader;
-            }
-            ViewA::AAdd(AAdd::Add(_url)) => {
-                self.state = AppState::Reader;
-            }
-            _ => (),
-        }
         match message {
-            ViewA::Select(num) => {
+            ViewA::ARead(ARead::Next(_)) => {
+                let cur = data.library.current();
+                cur.advance_by(settings.columns);
+            }
+            ViewA::ALib(a @ ALib::Select(_)) => {
+                let ALib::Select(id) = a;
                 data.current = Box::new(
                     data.library
-                        .book_by_id(num)
+                        .book_by_id(id)
                         .current()
                         .map(|(_, v)| v.clone())
                         .take(self.sread.per as usize)
                         .collect(),
                 );
+                self.state = AppState::Reader;
+                return self.slib.update(a);
+            }
+            ViewA::AAdd(AAdd::AddBook(_url)) => {
+                self.state = AppState::Reader;
             }
             ViewA::Switch(s) => self.state = s,
             ViewA::ASet(a) => return self.sset.update(a),

@@ -115,6 +115,8 @@ impl Retriever {
         let mut bk = Book::new(Some(index));
         let images = init.images(self.finder(&init).clone()).await;
         bk.chap_add(None, images.len());
+        // for batch dls take a look at:
+        // https://gist.github.com/mtkennerly/b513e7fe89c735e5a5df672c503404d7#file-main-rs-L42
         let cnt = join_all(
             images
                 .into_iter()
