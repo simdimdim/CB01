@@ -21,7 +21,6 @@ pub struct AppSettings {
     pub dark:            bool,
     pub width:           u32,
     pub height:          u32,
-    pub columns:         u16,
     pub state:           AppState,
     pub addfromanywhere: bool,
 }
@@ -33,7 +32,6 @@ impl Default for AppSettings {
             dark:            true,
             width:           Default::default(),
             height:          Default::default(),
-            columns:         1,
             state:           Default::default(),
             addfromanywhere: true,
         }

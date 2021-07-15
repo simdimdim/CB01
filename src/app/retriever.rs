@@ -157,7 +157,7 @@ impl Default for Retriever {
         let ja = Arc::new(reqwest::cookie::Jar::default());
         let cl = Client::builder()
             .user_agent(AGENT)
-		.connection_verbose(true)
+            .connection_verbose(true)
             .cookie_provider(ja.clone())
             .cookie_store(true)
             .http2_adaptive_window(true)

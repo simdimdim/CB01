@@ -1,20 +1,13 @@
 use pagepal_ui::*;
 
-#[tokio::test]
-async fn fetch() {
-    let p = "https://readmanganato.com/manga-fz982434/chapter-16".into();
-    let r = Retriever::default();
-    let page = r.get(p).await;
-    let next = r.next(&page).await;
-    let index = r.index(&next.unwrap()).await;
-    let _ = r.links(&index).await;
-}
-
 #[test]
 fn book() {
     let mut book = Book::open("One Piece");
     // Test number of pages in a chapter you know the length of
-    book.cont_add((0..5).map(|_| Box::new(vec![])).collect(), None);
+    book.cont_add(
+        (0..5).map(|_| Content::Empty).collect::<Vec<Content>>(),
+        None,
+    );
     book.chap_add(None, 2);
     assert_eq!(book.chapter(1).map(Iterator::count), Some(3));
     remove_cont()
@@ -28,36 +21,43 @@ fn shorten_chapter() {
         offset: 39,
         len:    10,
         name:   None,
+        src:    None,
     };
     let mut c1 = Chapter {
         offset: 40,
         len:    10,
         name:   None,
+        src:    None,
     };
     let mut c2 = Chapter {
         offset: 55,
         len:    3,
         name:   None,
+        src:    None,
     };
     let mut c3 = Chapter {
         offset: 45,
         len:    20,
         name:   None,
+        src:    None,
     };
     let mut c4 = Chapter {
         offset: 60,
         len:    10,
         name:   None,
+        src:    None,
     };
     let mut c5 = Chapter {
         offset: 70,
         len:    5,
         name:   None,
+        src:    None,
     };
     let other = Chapter {
         offset: 50,
         len:    10,
         name:   None,
+        src:    None,
     };
     assert_eq!(c0.shorten(other.range()), 10);
     assert_eq!(c1.shorten(other.range()), 9);

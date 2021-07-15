@@ -178,7 +178,6 @@ impl Page {
         //            ch.append(&mut chunk.to_vec());
         //        }
         //        Box::new(ch)
-        println!("{:?}", self.url);
         Box::new(
             client
                 .execute(self.req.as_ref().unwrap().try_clone().unwrap())

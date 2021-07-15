@@ -52,12 +52,12 @@ impl<'a> Screens {
         match message {
             ViewA::ARead(ARead::Next(off)) => {
                 let cur = data.library.current();
-                cur.advance_by(settings.columns);
+                cur.advance_by(self.sread.per);
                 return self.sread.update(ARead::Next(off));
             }
             ViewA::ARead(ARead::Prev(off)) => {
                 let cur = data.library.current();
-                cur.backtrack_by(settings.columns);
+                cur.backtrack_by(self.sread.per);
                 return self.sread.update(ARead::Prev(off));
             }
             ViewA::ALib(ALib::Select(id)) => {

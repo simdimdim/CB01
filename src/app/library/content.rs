@@ -44,7 +44,7 @@ impl Content {
                     .open(pb)
                     .await
                     .expect("Missing content file.")
-                    .write(data)
+                    .write_all(data)
                     .await
                     .unwrap();
                 // let _f = Handle::from_path(&pb);
@@ -56,7 +56,7 @@ impl Content {
                     .open(pb)
                     .await
                     .expect("Missing content file.")
-                    .write(text.as_bytes())
+                    .write_all(text.as_bytes())
                     .await
                     .unwrap();
             }
