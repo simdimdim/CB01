@@ -31,7 +31,7 @@ impl<'a> Screens {
             slib:  SLib::new(),
             sread: SRead::new(),
             sadd:  SAdd::new(),
-            state: AppState::Add,
+            state: AppState::Settings,
         }
     }
 

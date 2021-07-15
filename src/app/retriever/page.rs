@@ -168,15 +168,27 @@ impl Page {
 
     /// Download a single image from a Page with an url leading to an image
     pub async fn image(&self, client: &Client) -> Box<Vec<u8>> {
-        let mut res = client
-            .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
-            .await
-            .unwrap();
-        let mut ch = vec![];
-        while let Some(chunk) = res.chunk().await.unwrap() {
-            ch.append(&mut chunk.to_vec());
-        }
-        Box::new(ch)
+        //        let mut res = client
+        //
+        // .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
+        //            .await
+        //            .unwrap();
+        //        let mut ch = vec![];
+        //        while let Some(chunk) = res.chunk().await.unwrap() {
+        //            ch.append(&mut chunk.to_vec());
+        //        }
+        //        Box::new(ch)
+        println!("{:?}", self.url);
+        Box::new(
+            client
+                .execute(self.req.as_ref().unwrap().try_clone().unwrap())
+                .await
+                .unwrap()
+                .bytes()
+                .await
+                .unwrap()
+                .to_vec(),
+        )
     }
 
     /// Get a text chapter

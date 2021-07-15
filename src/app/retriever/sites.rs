@@ -16,6 +16,18 @@ impl Include {
             Host::parse("manganato.com").unwrap(),
             Box::new(ManganatoCom),
         );
+        hm.insert(
+            Host::parse("readmanganato.com").unwrap(),
+            Box::new(ManganatoCom),
+        );
+        hm.insert(
+            Host::parse("s18.mkklcdnv6tempv4.com").unwrap(),
+            Box::new(ManganatoCom),
+        );
+        hm.insert(
+            Host::parse("bu4.mkklcdnv6tempv4.com").unwrap(),
+            Box::new(ManganatoCom),
+        );
         hm.insert(Host::parse("zinmanga.com").unwrap(), Box::new(ZimangaCom));
         hm.insert(
             Host::parse("z-cdn.zinmanga.com").unwrap(),
@@ -31,7 +43,7 @@ impl Finder for ManganatoCom {
 
     fn headers(&self) -> HeaderMap {
         let mut hm = HeaderMap::new();
-        hm.insert(REFERER, "https://manganato.com/".parse().unwrap());
+        hm.insert(REFERER, "https://readmanganato.com/".parse().unwrap());
         hm
     }
 }
@@ -48,9 +60,16 @@ impl Finder for ZimangaCom {
     }
 
     fn images(&self, doc: Input) -> Vec<Page> {
-        let res=        Document::from(doc.as_str())
-            .select(Child(Child(Name("div"),Name("div")), Name("img")))
-            .map(|a| a.parent().unwrap().parent().unwrap().select(Name("div")).into_selection())
+        let res = Document::from(doc.as_str())
+            .select(Child(Child(Name("div"), Name("div")), Name("img")))
+            .map(|a| {
+                a.parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .select(Name("div"))
+                    .into_selection()
+            })
             .max_by(|a, b| a.len().cmp(&b.len()))
             .map(|a| a.select(Name("img")))
             .unwrap()
@@ -65,9 +84,8 @@ impl Finder for ZimangaCom {
                 }
             })
             .map(Into::into)
-            .collect()
+            .collect();
         /* TODO: Similar to index() add a check for links similarity */
-;
         res
     }
 }

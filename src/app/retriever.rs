@@ -85,13 +85,15 @@ impl Retriever {
 
     pub async fn images(&self, page: &Page) -> Vec<Page> {
         // use tokio::time::sleep;
-        let mut res = vec![];
-        for p in page.images(self.finder(page)).await {
-            // tokio::time::sleep(std::time::Duration::from_secs_f32(0.250)).
-            // await;
-            res.push(self.get(p).await);
-        }
-        res
+        // tokio::time::sleep(std::time::Duration::from_secs_f32(0.250)). await;
+        // let mut res = vec![];
+        join_all(
+            page.images(self.finder(page))
+                .await
+                .into_iter()
+                .map(|p| async move { self.get(p).await }),
+        )
+        .await
     }
 
     fn finder(&self, p: &Page) -> &Box<dyn Finder> {
@@ -118,7 +120,7 @@ impl Retriever {
         index.empty();
         let mut bk = Book::new(Some(index));
         let mut images = self.images(&init).await;
-        images = images.into_iter().take(1).collect::<Vec<_>>();
+        //        images = images.into_iter().take(1).collect::<Vec<_>>();
         images.iter_mut().for_each(|p| p.empty());
         bk.chap_add(None, images.len())
             .set_src(Some(init.url.clone()));
@@ -151,13 +153,15 @@ impl Default for Retriever {
     fn default() -> Self {
         let mut hm: HashMap<Host, Box<dyn Finder>> = HashMap::new();
         Include::custom(&mut hm);
-        static AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/70.0";
+        static AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0";
         let ja = Arc::new(reqwest::cookie::Jar::default());
         let cl = Client::builder()
             .user_agent(AGENT)
+		.connection_verbose(true)
             .cookie_provider(ja.clone())
             .cookie_store(true)
             .http2_adaptive_window(true)
+            .http2_max_frame_size(Some(u16::MAX as u32 * u8::MAX as u32))
             .build()
             .unwrap();
         Self {

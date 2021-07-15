@@ -20,6 +20,7 @@ use iced_native::{
     window::Event::{self, CloseRequested},
     Event::{Keyboard, Window},
 };
+use log::warn;
 use std::path::PathBuf;
 
 pub mod data;
@@ -81,6 +82,24 @@ impl Application for App {
         handle_settings(&mut self.settings, &message);
         match message {
             Message::EventOccurred(event) => match event {
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::V,
+                    modifiers:
+                        Modifiers {
+                            control: true,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.screens.state = AppState::Add;
+                    if let Some(s) = clipboard.read() {
+                        return Command::perform(async {}, move |_| {
+                            AAdd::Fetch(s.parse().map_err(|e| {warn!("Unable to parse clipboard contents into an url: {} ;{}",s, e);})
+				.unwrap_or("htpps://codenova.ddns.net".parse().unwrap())).into()
+                        });
+                    }
+                }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F,
                     modifiers:
