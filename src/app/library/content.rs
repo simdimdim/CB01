@@ -34,14 +34,20 @@ impl Content {
         }
     }
 
-    pub async fn save(&self, mut pb: PathBuf) {
-        std::fs::create_dir_all(&pb).unwrap();
-        if self.visual() {
-            pb.set_extension("jpg");
-        }
+    pub async fn save(&mut self, data: &Box<Vec<u8>>) {
         match self {
-            Self::Image { .. } => {
-                let _f = Handle::from_path(&pb);
+            Self::Image { pb, .. } => {
+                pb.set_extension("jpg");
+                OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(pb)
+                    .await
+                    .expect("Missing content file.")
+                    .write(data)
+                    .await
+                    .unwrap();
+                // let _f = Handle::from_path(&pb);
             }
             Self::Text { pb, text, .. } => {
                 OpenOptions::new()
@@ -84,7 +90,7 @@ impl Content {
     pub fn view(&self, columns: Option<u16>) -> Element<Message> {
         use iced::{HorizontalAlignment, Length, Text, VerticalAlignment};
         match self {
-            Self::Image { pb: path, .. } => Image::new(Handle::from_path(path))
+            Self::Image { pb, .. } => Image::new(Handle::from_path(pb))
                 .width(Length::FillPortion(columns.unwrap_or(1)))
                 .height(Length::FillPortion(columns.unwrap_or(1)))
                 .into(),

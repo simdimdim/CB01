@@ -18,7 +18,6 @@ pub enum Position {
 }
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Book {
-    pub id:       u16,
     pub src:      Option<Page>,
     pub content:  BTreeMap<u16, Content>,
     pub chapters: Vec<Chapter>,
@@ -30,7 +29,6 @@ impl Book {
         content.insert(0, Content::Empty);
         // 0th index chapter to be used as bookmark
         Self {
-            id: Id::MAX,
             src: page,
             content,
             chapters: vec![Chapter::default()],
@@ -62,7 +60,7 @@ impl Book {
         }
     }
 
-    pub fn chap_add(&mut self, n1: Option<usize>, l: usize) {
+    pub fn chap_add(&mut self, n1: Option<usize>, l: usize) -> &mut Chapter {
         let prev;
         match n1 {
             Some(n) => {
@@ -82,6 +80,7 @@ impl Book {
                 self.chapters.push((prev, l as Id).into());
             }
         }
+        self.chapters.last_mut().unwrap()
     }
 
     pub fn chap_remove(&mut self, n: usize) -> Option<(Chapter, Vec<Content>)> {
@@ -128,45 +127,52 @@ impl Book {
         }
     }
 
-    pub fn cont_add(&mut self, cont: Vec<Box<Vec<u8>>>, pos: Option<Position>) {
+    pub fn cont_add(&mut self, cont: Vec<Content>, pos: Option<Position>) {
         let default = (&(1 as Id), &Content::Empty);
         let split = match pos.unwrap_or(Position::Last) {
             Position::First => 1,
-            Position::BeforeCurrent => self.chapters[0].start() as usize,
+            Position::BeforeCurrent => 1.max(self.chapters[0].start() as usize),
             Position::AfterCurrent => self.chapters[0].end() as usize + 1,
             Position::Last => self.cont_len() as usize,
         } as Id;
+        let len = cont.len() as Id;
+        let sp = self.content.len() > 1;
 
         // lengthen chapters
         // filtered by insert pos
         // or better conditional lengthen depending on insert pos
 
-        let first = self
-            .content
-            .range(split..)
-            .next()
-            .unwrap_or(self.content.iter().rev().next().unwrap())
-            .0
-            .clone();
-        let len = cont.len() as Id;
-        let mut leftovers = self.content.split_off(&first);
-        let l = self
-            .content
-            .par_iter()
-            .max_by_key(|(&k, _)| k)
-            .unwrap_or(default)
-            .0
-            .clone();
-        cont.into_iter().enumerate().for_each(|(n, _data)| {
-            // TODO: convert data to Content.
-            self.content.insert(l + n as Id, Content::Empty);
-        });
-        self.content.append(
-            &mut leftovers
-                .iter_mut()
-                .map(|(k, v)| ((k + len), v.clone()))
-                .collect::<BTreeMap<Id, Content>>(),
-        );
+        if sp {
+            let first = self
+                .content
+                .range(split..)
+                .next()
+                .unwrap_or(self.content.iter().rev().next().unwrap())
+                .0
+                .clone();
+            let mut leftovers = self.content.split_off(&first);
+            let l = self
+                .content
+                .par_iter()
+                .max_by_key(|(&k, _)| k)
+                .unwrap_or(default)
+                .0
+                .clone() +
+                1;
+            cont.into_iter().enumerate().for_each(|(n, content)| {
+                self.content.insert(l + n as Id, content);
+            });
+            self.content.append(
+                &mut leftovers
+                    .iter_mut()
+                    .map(|(k, v)| ((k + len), v.clone()))
+                    .collect::<BTreeMap<Id, Content>>(),
+            );
+        } else {
+            cont.into_iter().enumerate().for_each(|(n, content)| {
+                self.content.insert(n as Id + 1, content);
+            });
+        }
     }
 
     pub fn cont_remove(&mut self, _new: Vec<Content>) { todo!() }
@@ -182,7 +188,12 @@ impl Book {
     }
 
     pub fn advance_by(&mut self, n: Id) -> Range<Id, Content> {
-        self.chapters[0].offset += self.chapters[0].offset.saturating_add(n);
+        self.chapters[0].offset = self.chapters[0].offset.saturating_add(n);
+        self.cont_batch(self.last().range())
+    }
+
+    pub fn backtrack_by(&mut self, n: Id) -> Range<Id, Content> {
+        self.chapters[0].offset = self.chapters[0].offset.saturating_sub(n);
         self.cont_batch(self.last().range())
     }
 }
@@ -190,19 +201,11 @@ impl Book {
 impl Default for Book {
     fn default() -> Self { Self::new(None) }
 }
-impl From<Id> for Book {
-    fn from(id: Id) -> Self {
-        Self {
-            id,
-            ..Default::default()
-        }
-    }
-}
 impl Ord for Book {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.id.cmp(&other.id) }
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.src.cmp(&other.src) }
 }
 impl PartialOrd for Book {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.src.cmp(&other.src))
     }
 }

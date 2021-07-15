@@ -1,4 +1,4 @@
-use crate::{settings::AppState, Library, APP_NAME};
+use crate::{Library, APP_NAME};
 use directories_next::{ProjectDirs, UserDirs};
 use iced::{
     executor,

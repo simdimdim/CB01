@@ -1,4 +1,4 @@
-use crate::{data::AppData, AppSettings, Book, Label, Message, ViewA};
+use crate::{data::AppData, AppSettings, Book, Content, Label, Message, ViewA};
 use iced::{
     scrollable,
     Align,
@@ -9,7 +9,8 @@ use iced::{
     Row,
     Scrollable,
 };
-use std::rc::Rc;
+use itertools::Either;
+use std::{path::PathBuf, rc::Rc};
 
 #[derive(Debug)]
 pub struct SRead {
@@ -44,36 +45,54 @@ impl SRead {
     ) -> Element<'a, Message> {
         let re = data.reversed;
         let col = self.per;
-
-        // TODO: skip n take, chunk
-        let cn = data.current.chunks_mut(self.per.max(1) as usize).fold(
-            Scrollable::new(&mut self.scroll)
-                .align_items(Align::Center)
-                .on_scroll(move |off| ARead::Scrolled(off).into()),
-            |mut content, ch| {
-                if re {
-                    ch.reverse();
-                }
-                content = content
-                    .push(ch.into_iter().fold(
-                        Row::new().align_items(Align::Center),
-                        |mut row, cnt| {
-                            let elem = cnt.view(Some(col));
-                            row = row
-                                .push(elem)
-                                .max_width(settings.width)
-                                .max_height(settings.height);
-                            row
-                        },
-                    ))
-                    .max_width(settings.width);
-                content
+        let res = if re {
+            Either::Left(data.library.current().current().rev())
+        } else {
+            Either::Right(data.library.current().current())
+        }
+        .take(self.per as usize)
+        .fold(
+            Row::new().align_items(Align::Center),
+            |mut row, (_, cnt)| {
+                let el = cnt.view(Some(col));
+                row = row.push(el);
+                row
             },
         );
+        let scroll = Scrollable::new(&mut self.scroll)
+            .align_items(Align::Center)
+            .on_scroll(move |off| ARead::Scrolled(off).into())
+            .push(res.max_width(settings.width).max_height(settings.height))
+            .max_width(settings.width);
+        // TODO: skip n take, chunk
+        //        let _cn = data.current.chunks_mut(self.per.max(1) as
+        // usize).fold(          Scrollable::new(&mut self.scroll)
+        //             .align_items(Align::Center)
+        //           .on_scroll(move |off| ARead::Scrolled(off).into()),
+        //            |mut content, ch| {
+        //                if re {
+        //                    ch.reverse();
+        //                }
+        //                content = content
+        //                    .push(ch.into_iter().fold(
+        //                        Row::new().align_items(Align::Center),
+        //                        |mut row, cnt| {
+        //                            let elem = cnt.view(Some(col));
+        //                            row = row
+        //                                .push(elem)
+        //                                .max_width(settings.width)
+        //                                .max_height(settings.height);
+        //                            row
+        //                        },
+        //                    ))
+        //                    .max_width(settings.width);
+        //                content
+        //            },
+        //        );
         if re {
             data.reversed = !data.reversed;
         }
-        Container::new(cn)
+        Container::new(scroll)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(Align::Center)

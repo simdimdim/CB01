@@ -1,4 +1,4 @@
-use crate::{Book, Label};
+use crate::{Book, Content, Label};
 use chrono::Duration;
 use futures::future::{join_all, OptionFuture};
 use reqwest::{Client, Url};
@@ -10,6 +10,7 @@ use std::{
         HashMap,
     },
     convert::TryInto,
+    path::PathBuf,
     sync::Arc,
 };
 use tokio::sync::Mutex;
@@ -27,6 +28,7 @@ pub use page::*;
 #[derive(Debug, Clone)]
 pub struct Retriever {
     pub client: Client,
+    pub jar:    Arc<reqwest::cookie::Jar>,
     pub delays: Arc<Mutex<BTreeMap<Host, Delay>>>,
     pub sites:  Arc<HashMap<Host, Box<dyn Finder>>>,
     pub finder: Arc<Box<dyn Finder>>, // default
@@ -85,7 +87,8 @@ impl Retriever {
         // use tokio::time::sleep;
         let mut res = vec![];
         for p in page.images(self.finder(page)).await {
-            // sleep(std::time::Duration::from_secs_f32(0.125)).await;
+            // tokio::time::sleep(std::time::Duration::from_secs_f32(0.250)).
+            // await;
             res.push(self.get(p).await);
         }
         res
@@ -111,18 +114,34 @@ impl Retriever {
     pub async fn new_book(&self, url: Url) -> (Label, Book) {
         let init = self.get(url.into()).await;
         let title = self.title(&init).await;
-        let index = self.index(&init).await;
+        let mut index = self.index(&init).await;
+        index.empty();
         let mut bk = Book::new(Some(index));
-        let images = init.images(self.finder(&init).clone()).await;
-        bk.chap_add(None, images.len());
+        let mut images = self.images(&init).await;
+        images = images.into_iter().take(1).collect::<Vec<_>>();
+        images.iter_mut().for_each(|p| p.empty());
+        bk.chap_add(None, images.len())
+            .set_src(Some(init.url.clone()));
+        bk.chapters[0].offset = 1;
+        bk.chapters[0].len = images.len() as crate::Id;
         // for batch dls take a look at:
         // https://gist.github.com/mtkennerly/b513e7fe89c735e5a5df672c503404d7#file-main-rs-L42
-        let cnt = join_all(
-            images
-                .into_iter()
-                .map(|p| async move { p.novel(self.finder(&p)).await }),
-        )
-        .await;
+        let name = || title.clone();
+        let cnt =
+            join_all(images.into_iter().enumerate().map(|(n, p)| async move {
+                let num = self.num(&p);
+                let path = PathBuf::from("library")
+                    .join(name().0)
+                    .join(format!("{:04}", num.1));
+                std::fs::create_dir_all(&path).unwrap();
+                let mut content = Content::Image {
+                    pb:  path.join(format!("{:04}", n)),
+                    src: Some(p.url.clone()),
+                };
+                content.save(&p.image(&self.client).await).await;
+                content
+            }))
+            .await;
         bk.cont_add(cnt, None);
         (title, bk)
     }
@@ -132,8 +151,18 @@ impl Default for Retriever {
     fn default() -> Self {
         let mut hm: HashMap<Host, Box<dyn Finder>> = HashMap::new();
         Include::custom(&mut hm);
+        static AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/70.0";
+        let ja = Arc::new(reqwest::cookie::Jar::default());
+        let cl = Client::builder()
+            .user_agent(AGENT)
+            .cookie_provider(ja.clone())
+            .cookie_store(true)
+            .http2_adaptive_window(true)
+            .build()
+            .unwrap();
         Self {
-            client: Default::default(),
+            client: cl,
+            jar:    ja,
             delays: Default::default(),
             sites:  Arc::new(hm),
             finder: Arc::new(Box::new(DefaultFinder)),

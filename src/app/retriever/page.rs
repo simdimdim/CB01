@@ -66,7 +66,7 @@ impl Page {
     }
 
     /// Free most of a Page
-    pub async fn empty(&mut self) { *self.html.lock().unwrap() = None; }
+    pub fn empty(&mut self) { *self.html.lock().unwrap() = None; }
 
     /// Freshness check
     pub fn is_old(&mut self) -> bool {
@@ -168,16 +168,15 @@ impl Page {
 
     /// Download a single image from a Page with an url leading to an image
     pub async fn image(&self, client: &Client) -> Box<Vec<u8>> {
-        Box::new(
-            client
-                .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
-                .await
-                .unwrap()
-                .bytes()
-                .await
-                .unwrap()
-                .to_vec(),
-        )
+        let mut res = client
+            .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
+            .await
+            .unwrap();
+        let mut ch = vec![];
+        while let Some(chunk) = res.chunk().await.unwrap() {
+            ch.append(&mut chunk.to_vec());
+        }
+        Box::new(ch)
     }
 
     /// Get a text chapter

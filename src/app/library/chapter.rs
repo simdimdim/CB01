@@ -1,4 +1,4 @@
-use crate::Id;
+use crate::{Id, Label};
 use reqwest::Url;
 use std::ops::RangeInclusive;
 
@@ -6,7 +6,8 @@ use std::ops::RangeInclusive;
 pub struct Chapter {
     pub offset: Id,
     pub len:    Id,
-    pub name:   Option<Url>,
+    pub src:    Option<Url>,
+    pub name:   Option<Label>,
 }
 impl Chapter {
     pub fn contains(&self, n: &Id) -> bool {
@@ -86,12 +87,32 @@ impl Chapter {
         };
         self.len
     }
+
+    pub fn set_src(&mut self, src: Option<Url>) -> &mut Self {
+        self.src = src;
+        self
+    }
+
+    pub fn set_name(&mut self, name: Option<Label>) -> &mut Self {
+        self.name = name;
+        self
+    }
 }
 impl From<(Id, Id)> for Chapter {
     fn from(n: (Id, Id)) -> Self {
         Self {
             offset: n.0,
             len: n.1,
+            ..Default::default()
+        }
+    }
+}
+impl From<(Id, Id, Option<Url>)> for Chapter {
+    fn from(n: (Id, Id, Option<Url>)) -> Self {
+        Self {
+            offset: n.0,
+            len: n.1,
+            src: n.2,
             ..Default::default()
         }
     }

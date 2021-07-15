@@ -17,6 +17,7 @@ pub struct SLib {
 #[derive(Debug, Clone, Copy)]
 pub enum ALib {
     Select(Id),
+    Swap(Id, Id),
 }
 
 impl SLib {
@@ -42,21 +43,21 @@ impl SLib {
     pub fn update(&mut self, message: ALib) -> Command<Message> {
         match message {
             ALib::Select(_) => (),
+            ALib::Swap(..) => (),
         }
         Command::none()
     }
 }
 impl Book {
     pub fn view(&mut self) -> Element<Message> {
-        let content =
-            Text::new(format!("Book {}", self.id))
-                .size(32)
-                .color(Color {
-                    r: 0.,
-                    g: 255.,
-                    b: 0.,
-                    a: 1.,
-                });
+        let content = Text::new(format!("Book {}", self.chapters[0].offset))
+            .size(32)
+            .color(Color {
+                r: 0.,
+                g: 255.,
+                b: 0.,
+                a: 1.,
+            });
         Container::new(content)
             .width(Length::Fill)
             .height(Length::Fill)

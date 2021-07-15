@@ -15,7 +15,7 @@ pub(super) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub String);
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Library {
     pub titles: Bimap<Label, Id>,
     pub books:  BTreeMap<Id, Book>,
@@ -34,7 +34,6 @@ impl Library {
             true => self.books.get(&id).unwrap(),
             false => {
                 self.books.insert(id, Book {
-                    id,
                     ..Default::default()
                 });
                 self.books.get(&id).unwrap()
@@ -50,7 +49,6 @@ impl Library {
             true => self.books.get_mut(&id).unwrap(),
             false => {
                 self.books.insert(id, Book {
-                    id,
                     ..Default::default()
                 });
                 self.books.get_mut(&id).unwrap()
@@ -90,24 +88,24 @@ impl Library {
         self.books.insert(key, bk)
     }
 
-    pub fn add_batch_to_group(&mut self, name: &String, books: Vec<&Book>) {
-        books.iter().map(|b| b.id).for_each(|id| {
+    pub fn add_batch_to_group(&mut self, name: &String, books: Vec<Id>) {
+        books.into_iter().for_each(|id| {
             self.groups.get_mut(name).unwrap().insert(id);
         });
     }
 
-    pub fn remove_batch_from_group(&mut self, name: &String, books: Vec<&Book>) {
-        books.iter().map(|b| b.id).for_each(|id| {
+    pub fn remove_batch_from_group(&mut self, name: &String, books: Vec<Id>) {
+        books.into_iter().for_each(|id| {
             self.groups.get_mut(name).unwrap().remove(&id);
         });
     }
 
-    pub fn add_to_group(&mut self, name: &String, book: &Book) {
-        self.groups.get_mut(name).unwrap().insert(book.id);
+    pub fn add_to_group(&mut self, name: &String, id: Id) {
+        self.groups.get_mut(name).unwrap().insert(id);
     }
 
-    pub fn remove_from_group(&mut self, name: &String, book: &Book) {
-        self.groups.get_mut(name).unwrap().remove(&book.id);
+    pub fn remove_from_group(&mut self, name: &String, id: Id) {
+        self.groups.get_mut(name).unwrap().remove(&id);
     }
 
     pub fn get_group(&self, name: &str) -> Option<Vec<&Book>> {
@@ -127,6 +125,23 @@ impl Library {
 
     pub fn remove_group(&mut self, name: &String) -> Option<HashSet<Id>> {
         self.groups.remove(name)
+    }
+}
+
+impl Default for Library {
+    fn default() -> Self {
+        let mut titles = Bimap::default();
+        let k = titles.add_name("No Books.".into());
+        let mut books = BTreeMap::new();
+        books.insert(k, Book::new(None));
+        let mut groups = HashMap::new();
+        groups.insert("Reading".to_owned(), HashSet::new());
+        Self {
+            titles,
+            books,
+            groups,
+            cur: k,
+        }
     }
 }
 

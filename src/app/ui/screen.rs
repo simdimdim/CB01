@@ -50,12 +50,17 @@ impl<'a> Screens {
         &mut self, data: &mut AppData, settings: &AppSettings, message: ViewA,
     ) -> Command<Message> {
         match message {
-            ViewA::ARead(ARead::Next(_)) => {
+            ViewA::ARead(ARead::Next(off)) => {
                 let cur = data.library.current();
                 cur.advance_by(settings.columns);
+                return self.sread.update(ARead::Next(off));
             }
-            ViewA::ALib(a @ ALib::Select(_)) => {
-                let ALib::Select(id) = a;
+            ViewA::ARead(ARead::Prev(off)) => {
+                let cur = data.library.current();
+                cur.backtrack_by(settings.columns);
+                return self.sread.update(ARead::Prev(off));
+            }
+            ViewA::ALib(ALib::Select(id)) => {
                 data.current = Box::new(
                     data.library
                         .book_by_id(id)
@@ -65,10 +70,7 @@ impl<'a> Screens {
                         .collect(),
                 );
                 self.state = AppState::Reader;
-                return self.slib.update(a);
-            }
-            ViewA::AAdd(AAdd::AddBook(_url)) => {
-                self.state = AppState::Reader;
+                return self.slib.update(ALib::Select(id));
             }
             ViewA::Switch(s) => self.state = s,
             ViewA::ASet(a) => return self.sset.update(a),

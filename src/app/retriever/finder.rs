@@ -111,7 +111,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .unwrap()
             .iter()
             .map(|a| {
-                if let Some(n) = a.attr("data-src") {
+                if let Some(n) = a.attr("src") {
                     n.to_owned()
                 } else {
                     a.attr("data-src")

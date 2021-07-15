@@ -1,4 +1,13 @@
-use crate::{data::AppData, AppSettings, Book, Id, Label, Message, ViewA};
+use crate::{
+    data::AppData,
+    AppSettings,
+    AppState,
+    Book,
+    Id,
+    Label,
+    Message,
+    ViewA,
+};
 use iced::{
     button,
     Align,
@@ -16,25 +25,20 @@ use iced::{
 use reqwest::Url;
 
 pub struct SAdd {
-    pub follow:  Checkbox<Message>,
-    pub followb: bool,
-    pub addbtn:  button::State,
-    pub title:   Label,
-    pub err:     String,
-    pub book:    Option<Book>,
+    pub follow: bool,
+    pub addbtn: button::State,
+    pub title:  Label,
+    pub err:    String,
+    pub book:   Option<Book>,
 }
 impl Default for SAdd {
     fn default() -> Self {
-        let followb = false;
         Self {
-            follow: Checkbox::new(followb, "To reader on add.", |a| {
-                AAdd::ToggleFollow(a).into()
-            }),
-            followb,
+            follow: false,
             addbtn: Default::default(),
-            title: Default::default(),
-            err: Default::default(),
-            book: None,
+            title:  Default::default(),
+            err:    Default::default(),
+            book:   None,
         }
     }
 }
@@ -68,11 +72,18 @@ impl<'a> SAdd {
             b: 0.,
             a: 1.,
         });
+        let follow = Checkbox::new(self.follow, "To reader on add.", |a| {
+            AAdd::ToggleFollow(a).into()
+        });
         let addbtn = Button::new(
             &mut self.addbtn,
-            Text::new("Fetch")
-                .vertical_alignment(VerticalAlignment::Center)
-                .horizontal_alignment(iced::HorizontalAlignment::Center),
+            Text::new(if self.book.is_none() {
+                "Fetch"
+            } else {
+                "Add to lib"
+            })
+            .vertical_alignment(VerticalAlignment::Center)
+            .horizontal_alignment(iced::HorizontalAlignment::Center),
         )
         .width(Length::Shrink)
         .on_press(if self.book.is_none() {
@@ -89,6 +100,7 @@ impl<'a> SAdd {
             .align_items(Align::Center)
             .push(err)
             .push(title)
+            .push(follow)
             .push(addbtn);
         Container::new(col)
             .width(Length::Fill)
@@ -110,7 +122,15 @@ impl<'a> SAdd {
                 );
             }
             AAdd::AddBook(bk) => {
+                self.title = "".into();
                 self.book = data.library.add_book(&self.title, bk);
+                if self.follow {
+                    data.library.cur =
+                        data.library.titles.id(&self.title).unwrap();
+                    return Command::perform(async {}, |_| {
+                        AppState::Reader.into()
+                    });
+                }
             }
             AAdd::UpdateTitle(t) => self.title = t,
             AAdd::UpdateBook(t, b) => {
@@ -118,7 +138,7 @@ impl<'a> SAdd {
                 self.book = Some(b);
             }
             AAdd::Refresh(_) => todo!(),
-            AAdd::ToggleFollow(b) => self.followb = b,
+            AAdd::ToggleFollow(b) => self.follow = b,
         }
         Command::none()
     }
