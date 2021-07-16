@@ -17,22 +17,18 @@ impl From<AppState> for Message {
 
 #[derive(Debug, Clone)]
 pub struct AppSettings {
-    pub should_exit:     bool,
-    pub fullscreen:      bool,
-    pub width:           u32,
-    pub height:          u32,
-    pub state:           AppState,
-    pub addfromanywhere: bool,
+    pub should_exit:  bool,
+    pub fullscreen:   bool,
+    pub width:        u32,
+    pub height:       u32,
 }
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            should_exit:     Default::default(),
-            fullscreen:      Default::default(),
-            width:           Default::default(),
-            height:          Default::default(),
-            state:           Default::default(),
-            addfromanywhere: true,
+            should_exit:  Default::default(),
+            fullscreen:   Default::default(),
+            width:        Default::default(),
+            height:       Default::default(),
         }
     }
 }

@@ -36,10 +36,10 @@ impl<'a> Screens {
     }
 
     pub fn view(
-        &'a mut self, data: &'a mut AppData, settings: &AppSettings,
+        &'a mut self, data: &'a mut AppData, settings: &'a mut AppSettings,
     ) -> Element<Message> {
         match self.state {
-            AppState::Settings => self.sset.view(),
+            AppState::Settings => self.sset.view(settings),
             AppState::Reader => self.sread.view(data, settings),
             AppState::Library => self.slib.view(),
             AppState::Add => self.sadd.view(),

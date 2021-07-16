@@ -91,12 +91,22 @@ impl Application for App {
                             shift: false,
                             alt: false,
                         },
-                }) => {
+                }) if self.screens.sset.anywhere => {
                     self.screens.state = AppState::Add;
                     if let Some(s) = clipboard.read() {
                         return Command::perform(async {}, move |_| {
-                            AAdd::Fetch(s.parse().map_err(|e| {warn!("Unable to parse clipboard contents into an url: {} ;{}",s, e);})
-				.unwrap_or("htpps://codenova.ddns.net".parse().unwrap())).into()
+                            AAdd::Fetch(
+                                s.parse()
+                                    .map_err(|e| {
+                                        warn!("{} : {}", e, s);
+                                    })
+                                    .unwrap_or(
+                                        "htpps://codenova.ddns.net"
+                                            .parse()
+                                            .unwrap(),
+                                    ),
+                            )
+                            .into()
                         });
                     }
                 }
@@ -214,7 +224,31 @@ impl Application for App {
                     self.update(ARead::More.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
-                    key_code: KeyCode::Numpad1,
+                    key_code: KeyCode::F1 | KeyCode::Numpad0,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.update(AppState::Settings.into(), clipboard);
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::F2 | KeyCode::Numpad1,
+                    modifiers:
+                        Modifiers {
+                            control: false,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.update(AppState::Library.into(), clipboard);
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::F3 | KeyCode::Numpad2,
                     modifiers:
                         Modifiers {
                             control: false,
@@ -226,7 +260,7 @@ impl Application for App {
                     self.update(AppState::Reader.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
-                    key_code: KeyCode::Numpad2,
+                    key_code: KeyCode::F4 | KeyCode::Numpad3,
                     modifiers:
                         Modifiers {
                             control: false,
@@ -235,19 +269,7 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    self.update(AppState::Reader.into(), clipboard);
-                }
-                Keyboard(KeyPressed {
-                    key_code: KeyCode::Numpad3,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
-                }) => {
-                    self.update(AppState::Reader.into(), clipboard);
+                    self.update(AppState::Add.into(), clipboard);
                 }
                 _ => {}
             },
@@ -264,7 +286,9 @@ impl Application for App {
                     a,
                 );
             }
-            Message::FullscreenMode => todo!(),
+            Message::FullscreenMode => {
+                self.settings.fullscreen = !self.settings.fullscreen
+            }
             Message::SaveLibrary => todo!(),
         };
 
@@ -331,18 +355,9 @@ fn handle_settings(settings: &mut AppSettings, message: &Message) {
             }
             _ => {}
         },
-        Message::FullscreenMode => {
-            settings.fullscreen = !settings.fullscreen;
-        }
         Message::Exit => {
             settings.should_exit = true;
         }
-        Message::Switch(state) => {
-            settings.state = *state;
-        }
-        Message::SaveLibrary => (),
-        Message::Update(_s) => {
-            // TODO: Update settings accordingly >.>
-        }
+        _ => (),
     };
 }
