@@ -10,6 +10,7 @@ pub mod content;
 pub use book::*;
 pub use chapter::*;
 pub use content::*;
+use num::cast::AsPrimitive;
 
 pub(super) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
 
@@ -69,23 +70,27 @@ impl Library {
     /// true on success
     pub fn rename(&mut self, old: &Label, new: &String) -> bool {
         // let newlabel = new.into();
-        self.titles.rename_by_title(old, &new.into())
+        self.titles.rename_by_title(old, new.into())
     }
 
     pub fn size(&self) -> usize { self.books.len() }
 
     fn book_id(&mut self, name: &Label) -> Id {
         match self.titles.id(name) {
-            Some(n) => n,
-            None => self.titles.add_name(name.to_owned()),
+            Some(&n) => n,
+            None => self.titles.add_name::<Id>(name.to_owned()),
         }
     }
 
-    pub fn new_id() -> Id { ID_COUNTER.fetch_add(1, Ordering::SeqCst) % Id::MAX }
+    pub fn new_id<T>() -> T
+    where
+        T: From<Id>, {
+        T::from(ID_COUNTER.fetch_add(1, Ordering::SeqCst) % Id::MAX)
+    }
 
     pub fn add_book(&mut self, title: &Label, bk: Book) -> Option<Book> {
-        let key = self.book_id(title);
-        self.books.insert(key, bk)
+        let id = self.book_id(title);
+        self.books.insert(id, bk)
     }
 
     pub fn add_batch_to_group(&mut self, name: &String, books: Vec<Id>) {
@@ -108,15 +113,23 @@ impl Library {
         self.groups.get_mut(name).unwrap().remove(&id);
     }
 
-    pub fn get_group(&self, name: &str) -> Option<Vec<&Book>> {
+    pub fn get_group(&self, name: &str) -> Option<Vec<Book>> {
         self.groups.get(name).map(|r| {
             r.iter().fold(vec![], |mut acc, b| {
                 if let Some(bk) = self.books.get(b) {
-                    acc.push(bk);
+                    acc.push(bk.to_owned());
                 };
                 acc
             })
         })
+    }
+
+    pub fn group_size(&mut self, name: &str) -> usize {
+        if let Some(hs) = self.groups.get(name) {
+            hs.len()
+        } else {
+            0
+        }
     }
 
     pub fn add_group(&mut self, name: String) -> &mut HashSet<Id> {
@@ -130,8 +143,8 @@ impl Library {
 
 impl Default for Library {
     fn default() -> Self {
-        let mut titles = Bimap::default();
-        let k = titles.add_name("No Books.".into());
+        let mut titles = Bimap::new();
+        let k = titles.add_name::<Id>("No Books.".into());
         let mut books = BTreeMap::new();
         books.insert(k, Book::new(None));
         let mut groups = HashMap::new();
@@ -145,6 +158,6 @@ impl Default for Library {
     }
 }
 
-impl<T: Into<String>> From<T> for Label {
-    fn from(s: T) -> Self { Self(s.into()) }
+impl<T: ToString> From<T> for Label {
+    fn from(s: T) -> Self { Self(s.to_string()) }
 }

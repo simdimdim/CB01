@@ -136,7 +136,7 @@ impl<'a> SAdd {
                 self.title = "".into();
                 if self.follow {
                     data.library.cur =
-                        data.library.titles.id(&self.title).unwrap();
+                        *data.library.titles.id(&self.title).unwrap();
                     return Command::perform(async {}, |_| {
                         AppState::Reader.into()
                     });

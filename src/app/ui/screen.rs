@@ -31,7 +31,7 @@ impl<'a> Screens {
             slib:  SLib::new(),
             sread: SRead::new(),
             sadd:  SAdd::new(),
-            state: AppState::Settings,
+            state: AppState::Library,
         }
     }
 
@@ -41,7 +41,7 @@ impl<'a> Screens {
         match self.state {
             AppState::Settings => self.sset.view(settings),
             AppState::Reader => self.sread.view(data, settings),
-            AppState::Library => self.slib.view(),
+            AppState::Library => self.slib.view(data),
             AppState::Add => self.sadd.view(),
         }
     }

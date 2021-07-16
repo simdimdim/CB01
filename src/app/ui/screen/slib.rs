@@ -1,6 +1,6 @@
-use crate::{ASet, Book, Id, Message, ViewA};
+use crate::{ASet, AppData, Book, Id, Message, ViewA};
 use iced::{
-    pane_grid::{Content, State},
+    pane_grid::{Axis, Content, State},
     Color,
     Command,
     Container,
@@ -12,25 +12,30 @@ use iced::{
 
 #[derive(Debug)]
 pub struct SLib {
-    pub panes: State<Book>,
+    pub panes: Option<State<Book>>,
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ALib {
     Select(Id),
     Swap(Id, Id),
     Dragged(iced::pane_grid::DragEvent),
+    Split(()),
 }
 
 impl SLib {
-    pub fn new() -> Self {
-        let (panes, _) = State::new(Book::default());
-        Self { panes }
-    }
+    pub fn new() -> Self { Self { panes: None } }
 
-    pub fn view(&mut self) -> Element<Message> {
+    pub fn view(&mut self, data: &mut AppData) -> Element<Message> {
+        let l = data.library.group_size("Reading");
+        let g = data.library.get_group("Reading");
+        let (mut panes, first) = State::new(data.library.current().clone());
+        g.unwrap().into_iter().for_each(|b| {
+            panes.split(Axis::Horizontal, &first, b);
+        });
+        self.panes = Some(panes);
         let pane_grid = PaneGrid::new(
-            &mut self.panes,
-            |_pane, b: &mut Book| -> Content<Message> { b.view().into() },
+            self.panes.as_mut().unwrap(),
+            |_pane, b| -> Content<Message> { b.view().into() },
         )
         .width(Length::Fill)
         .height(Length::Fill)
@@ -52,6 +57,7 @@ impl SLib {
                 // self.libview.panes.swap(&pane, &target);
             }
             ALib::Dragged(_) => {}
+            ALib::Split(()) => (),
         }
         Command::none()
     }

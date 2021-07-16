@@ -1,77 +1,66 @@
 use super::ID_COUNTER;
 use crate::{Id, Library};
-use fxhash::FxBuildHasher;
-use indexmap::IndexSet;
-use std::hash::Hash;
+use fxhash::{FxBuildHasher, FxHasher};
+use num::cast::AsPrimitive;
+use std::hash::{BuildHasher, Hash};
 
-#[derive(Debug, Clone, Default)]
-pub struct Bimap<K: Hash + Eq, V: Hash + Eq> {
-    pub first:  IndexSet<K, FxBuildHasher>,
-    pub second: IndexSet<V, FxBuildHasher>,
+#[derive(Debug, Clone)]
+pub struct Bimap<K: Clone + Hash + Eq, V: Copy + Hash + Eq> {
+    pub map: bimap::BiMap<K, V>,
 }
-impl<T: Clone + Hash + Eq> Bimap<T, Id>
+
+impl<K: Clone + Hash + Eq, V: Copy + Hash + Eq> Bimap<K, V>
 where
-    T: From<String>,
+    V: Into<K>,
 {
-    /// Adds an title if it doesn't exists and returns the Id associated with it
-    /// if it's already in the map returns the title
-    pub fn add_name(&mut self, key: T) -> Id {
-        match self.first.get_index_of(&key) {
-            Some(n) => self.second[n],
-            None => {
-                self.first.insert(key);
-                let new = Library::new_id();
-                self.second.insert(new);
-                new
-            }
+    pub fn new() -> Self {
+        let map = bimap::hash::BiHashMap::<K, V>::new();
+        Self { map }
+    }
+
+    /// Adds a title if it doesn't exists and returns the Id associated with it,
+    /// if it's already in the map returns the title id
+    pub fn add_name<S>(&mut self, key: K) -> V
+    where
+        S: Into<V>,
+        S: From<Id>, {
+        if self.map.contains_left(&key) {
+            *self.map.get_by_left(&key).unwrap()
+        } else {
+            let id = Library::new_id::<S>().into();
+            self.map.insert_no_overwrite(key, id.clone()).ok();
+            id
         }
     }
 
     /// Adds an Id if it doesn't exists and returns the title associated with it
     /// if it's already in the map returns the title
-    pub fn add_id(&mut self, key: Id) -> T {
-        match self.second.get_index_of(&key) {
-            Some(n) => self.first[n].clone(),
-            None => {
-                self.second.insert(key);
-                let new: T = key.to_string().into();
-                self.first.insert(new.clone());
-                new
-            }
+    pub fn add_id(&mut self, key: V) -> &K {
+        if !self.map.contains_right(&key) {
+            self.map.insert_no_overwrite(key.into(), key).ok();
         }
+        self.map.get_by_right(&key).unwrap()
     }
 
     /// Returns the Id associated with a title if the title exists
-    pub fn id(&mut self, key: &T) -> Option<Id> {
-        self.first.get_index_of(key).map(|n| self.second[n].clone())
-    }
+    pub fn id(&mut self, key: &K) -> Option<&V> { self.map.get_by_left(key) }
 
     /// Returns the name associated with an Id if the Id exists
-    pub fn title(&mut self, key: Id) -> Option<T> {
-        self.second
-            .get_index_of(&key)
-            .map(|n| self.first[n].clone())
+    pub fn title(&mut self, key: V) -> Option<&K> { self.map.get_by_right(&key) }
+
+    /// returns true on success
+    pub fn rename_by_title(&mut self, old: &K, new: K) -> bool {
+        self.map
+            .remove_by_left(old)
+            .map(|(_, v)| self.map.insert(new, v))
+            .is_some()
     }
 
     /// returns true on success
-    pub fn rename_by_title(&mut self, old: &T, new: &T) -> bool {
-        match (!self.first.contains(new), self.first.contains(old)) {
-            (true, true) => {
-                self.first.insert(new.clone());
-                self.first.swap_remove(old)
-            }
-            _ => false,
-        }
-    }
-
-    /// returns true on success
-    pub fn rename_by_id(&mut self, old: Id, new: &T) -> bool {
-        match (!self.first.contains(new), self.first.len() < old as usize) {
-            (true, true) => {
-                self.first.insert(new.clone());
-                self.first.swap_remove_index(old as usize).is_some()
-            }
-            _ => false,
-        }
+    pub fn rename_by_id(&mut self, old: V, new: K) -> bool {
+        self.map
+            .remove_by_right(&old)
+            .map(|(_, v)| self.map.insert(new, v))
+            .is_some()
     }
 }
