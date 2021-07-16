@@ -19,26 +19,30 @@ use iced::{
     Container,
     Element,
     Length,
+    Row,
     Text,
+    TextInput,
     VerticalAlignment,
 };
 use reqwest::Url;
 
 pub struct SAdd {
-    pub follow: bool,
-    pub addbtn: button::State,
-    pub title:  Label,
-    pub err:    String,
-    pub book:   Option<Book>,
+    pub title:      Label,
+    pub err:        String,
+    pub titleinput: iced::text_input::State,
+    pub addbtn:     button::State,
+    pub follow:     bool,
+    pub book:       Option<Book>,
 }
 impl Default for SAdd {
     fn default() -> Self {
         Self {
-            follow: false,
-            addbtn: Default::default(),
-            title:  Default::default(),
-            err:    Default::default(),
-            book:   None,
+            title:      Default::default(),
+            err:        Default::default(),
+            titleinput: Default::default(),
+            addbtn:     Default::default(),
+            follow:     false,
+            book:       None,
         }
     }
 }
@@ -46,6 +50,7 @@ impl Default for SAdd {
 pub enum AAdd {
     AddBook(Book),
     Fetch(Url),
+    UpdateErr(String),
     UpdateTitle(Label),
     UpdateBook(Label, Book),
     Refresh(Id),
@@ -66,12 +71,14 @@ impl<'a> SAdd {
             b: 0.,
             a: 1.,
         });
-        let title = Text::new(&self.title.0).size(32).color(Color {
-            r: 0.,
-            g: 255.,
-            b: 0.,
-            a: 1.,
-        });
+        let title = TextInput::new(
+            &mut self.titleinput,
+            "Title",
+            self.title.0.as_str(),
+            |a| AAdd::UpdateTitle(a.into()).into(),
+        )
+        .size(32)
+        .width(Length::FillPortion(3));
         let follow = Checkbox::new(self.follow, "To reader on add.", |a| {
             AAdd::ToggleFollow(a).into()
         });
@@ -96,12 +103,15 @@ impl<'a> SAdd {
         } else {
             AAdd::AddBook(self.book.as_ref().unwrap().to_owned()).into()
         });
+        let row2 = Row::new()
+            .push(addbtn)
+            .push(follow)
+            .align_items(Align::Center);
         let col = Column::new()
             .align_items(Align::Center)
             .push(err)
             .push(title)
-            .push(follow)
-            .push(addbtn);
+            .push(row2);
         Container::new(col)
             .width(Length::Fill)
             .height(Length::Fill)
@@ -122,8 +132,8 @@ impl<'a> SAdd {
                 );
             }
             AAdd::AddBook(bk) => {
-                self.title = "".into();
                 self.book = data.library.add_book(&self.title, bk);
+                self.title = "".into();
                 if self.follow {
                     data.library.cur =
                         data.library.titles.id(&self.title).unwrap();
@@ -132,6 +142,7 @@ impl<'a> SAdd {
                     });
                 }
             }
+            AAdd::UpdateErr(t) => self.err = t,
             AAdd::UpdateTitle(t) => self.title = t,
             AAdd::UpdateBook(t, b) => {
                 self.title = t;

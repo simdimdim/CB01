@@ -87,13 +87,18 @@ impl Retriever {
         // use tokio::time::sleep;
         // tokio::time::sleep(std::time::Duration::from_secs_f32(0.250)). await;
         // let mut res = vec![];
-        join_all(
-            page.images(self.finder(page))
-                .await
-                .into_iter()
-                .map(|p| async move { self.get(p).await }),
-        )
-        .await
+
+        page.images(self.finder(page))
+            .await
+            .into_iter()
+            .map(|mut p| {
+                let h = self.finder(&p).headers();
+                let req =
+                    self.client.get(p.url.clone()).headers(h).build().unwrap();
+                p.prep(req);
+                p
+            })
+            .collect()
     }
 
     fn finder(&self, p: &Page) -> &Box<dyn Finder> {
@@ -120,31 +125,34 @@ impl Retriever {
         index.empty();
         let mut bk = Book::new(Some(index));
         let mut images = self.images(&init).await;
-        //        images = images.into_iter().take(1).collect::<Vec<_>>();
-        images.iter_mut().for_each(|p| p.empty());
         bk.chap_add(None, images.len())
             .set_src(Some(init.url.clone()));
-        bk.chapters[0].offset = 1;
-        bk.chapters[0].len = images.len() as crate::Id;
-        // for batch dls take a look at:
-        // https://gist.github.com/mtkennerly/b513e7fe89c735e5a5df672c503404d7#file-main-rs-L42
-        let name = || title.clone();
-        let cnt =
-            join_all(images.into_iter().enumerate().map(|(n, p)| async move {
-                let num = self.num(&p);
-                let path = PathBuf::from("library")
-                    .join(name().0)
-                    .join(format!("{:04}", num.1));
-                std::fs::create_dir_all(&path).unwrap();
-                let mut content = Content::Image {
-                    pb:  path.join(format!("{:04}", n)),
-                    src: Some(p.url.clone()),
-                };
-                content.save(&p.image(&self.client).await).await;
-                content
-            }))
+        {
+            // TODO: to be moved in it's own method and processed later
+            // for batch dls take a look at:
+            // https://gist.github.com/mtkennerly/b513e7fe89c735e5a5df672c503404d7#file-main-rs-L42
+            images.iter_mut().for_each(|p| p.empty());
+            bk.chapters[0].offset = 1;
+            bk.chapters[0].len = images.len() as crate::Id;
+            let name = || title.clone();
+            let cnt = join_all(images.into_iter().enumerate().map(
+                |(n, p)| async move {
+                    let num = self.num(&p);
+                    let path = PathBuf::from("library")
+                        .join(name().0)
+                        .join(format!("{:04}", num.1));
+                    std::fs::create_dir_all(&path).unwrap();
+                    let mut content = Content::Image {
+                        pb:  path.join(format!("{:04}", n)),
+                        src: Some(p.url.clone()),
+                    };
+                    content.save(&p.image(&self.client).await).await;
+                    content
+                },
+            ))
             .await;
-        bk.cont_add(cnt, None);
+            bk.cont_add(cnt, None);
+        }
         (title, bk)
     }
 }

@@ -47,7 +47,7 @@ impl<'a> Screens {
     }
 
     pub fn update(
-        &mut self, data: &mut AppData, settings: &AppSettings, message: ViewA,
+        &mut self, data: &mut AppData, _settings: &AppSettings, message: ViewA,
     ) -> Command<Message> {
         match message {
             ViewA::ARead(ARead::Next(off)) => {
