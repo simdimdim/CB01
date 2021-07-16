@@ -18,6 +18,7 @@ pub struct SLib {
 pub enum ALib {
     Select(Id),
     Swap(Id, Id),
+    Dragged(iced::pane_grid::DragEvent),
 }
 
 impl SLib {
@@ -33,7 +34,7 @@ impl SLib {
         )
         .width(Length::Fill)
         .height(Length::Fill)
-        .on_drag(|a| ASet::Dragged(a).into());
+        .on_drag(|a| ALib::Dragged(a).into());
         Container::new(pane_grid)
             .width(Length::Fill)
             .height(Length::Fill)
@@ -44,6 +45,13 @@ impl SLib {
         match message {
             ALib::Select(_) => (),
             ALib::Swap(..) => (),
+            ALib::Dragged(iced::pane_grid::DragEvent::Dropped {
+                pane: _,
+                target: _,
+            }) => {
+                // self.libview.panes.swap(&pane, &target);
+            }
+            ALib::Dragged(_) => {}
         }
         Command::none()
     }

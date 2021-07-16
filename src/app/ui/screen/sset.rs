@@ -1,6 +1,7 @@
-use crate::{Message, ViewA};
+use crate::{app::ui::settings::Styled, Message, Theme, ViewA};
 use iced::{
     button,
+    checkbox,
     Align,
     Button,
     Checkbox,
@@ -11,37 +12,39 @@ use iced::{
     Length,
     Row,
     Text,
+    VerticalAlignment,
 };
 
+#[derive(Debug)]
 pub struct SSet {
     pub exitbtn:  button::State,
     pub fs_btn:   button::State,
-    pub darkmode: Checkbox<Message>,
-    darkmodebool: bool,
+    pub darkmode: bool,
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ASet {
     ToggleDark(bool),
-    Dragged(iced::pane_grid::DragEvent),
 }
 impl SSet {
     pub fn new() -> Self {
-        let darkmodebool = false;
         Self {
-            exitbtn: Default::default(),
-            fs_btn: Default::default(),
-            darkmode: Checkbox::new(darkmodebool, "Dark mode", |a| {
-                Message::Update(ViewA::ASet(ASet::ToggleDark(a)))
-            }),
-            darkmodebool,
+            exitbtn:  Default::default(),
+            fs_btn:   Default::default(),
+            darkmode: true,
         }
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let checkbox = Checkbox::new(self.darkmodebool, "Dark mode", |a| {
-            ASet::ToggleDark(a).into()
-        })
-        .width(Length::Fill);
+        let checkbox =
+            Checkbox::new(self.darkmode, "", |a| ASet::ToggleDark(a).into())
+                .spacing(0)
+                .size(28);
+        // .style(Theme::from(self.darkmode));
+        let checkboxtext = Text::new(if self.darkmode { "Night" } else { "Day" })
+            .width(Length::Shrink)
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Bottom)
+            .color(Theme::from(self.darkmode));
         let exit = Button::new(
             &mut self.exitbtn,
             Text::new("Exit")
@@ -49,7 +52,7 @@ impl SSet {
                 .horizontal_alignment(HorizontalAlignment::Center),
         )
         .width(Length::Units(80))
-        .padding(8)
+        .min_height(24)
         .on_press(Message::Exit);
         let fs = Button::new(
             &mut self.fs_btn,
@@ -58,11 +61,12 @@ impl SSet {
                 .horizontal_alignment(HorizontalAlignment::Center),
         )
         .width(Length::Units(120))
-        .padding(8)
+        .min_height(24)
         .on_press(Message::FullscreenMode);
         let content = Row::new()
             .align_items(Align::Center)
             .spacing(4)
+            .push(checkboxtext)
             .push(checkbox)
             .push(fs)
             .push(exit);
@@ -77,24 +81,12 @@ impl SSet {
 
     pub fn update(&mut self, message: ASet) -> Command<Message> {
         match message {
-            ASet::ToggleDark(b) => self.darkmodebool = b,
-            ASet::Dragged(iced::pane_grid::DragEvent::Dropped {
-                pane: _,
-                target: _,
-            }) => {
-                // self.libview.panes.swap(&pane, &target);
-            }
-            ASet::Dragged(_) => {}
+            ASet::ToggleDark(b) => self.darkmode = b,
+
         }
         Command::none()
     }
 }
 impl From<ASet> for Message {
     fn from(a: ASet) -> Self { Message::Update(ViewA::ASet(a)) }
-}
-
-impl std::fmt::Debug for SSet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("").field(&self.darkmodebool).finish()
-    }
 }

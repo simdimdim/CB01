@@ -122,7 +122,10 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    self.settings.dark = !self.settings.dark;
+                    self.update(
+                        ASet::ToggleDark(!self.screens.sset.darkmode).into(),
+                        clipboard,
+                    );
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Home,
@@ -285,7 +288,7 @@ impl Application for App {
     }
 
     fn background_color(&self) -> Color {
-        match self.settings.dark {
+        match self.screens.sset.darkmode {
             true => Color::BLACK,
             false => Color::WHITE,
         }

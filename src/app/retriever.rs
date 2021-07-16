@@ -169,7 +169,6 @@ impl Default for Retriever {
             .cookie_provider(ja.clone())
             .cookie_store(true)
             .http2_adaptive_window(true)
-            .http2_max_frame_size(Some(u16::MAX as u32 * u8::MAX as u32))
             .build()
             .unwrap();
         Self {
