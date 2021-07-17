@@ -2,7 +2,7 @@ use pagepal_ui::*;
 
 #[test]
 fn book() {
-    let mut book = Book::open("One Piece");
+    let (_label, mut book) = Book::open("", std::path::PathBuf::from("."));
     // Test number of pages in a chapter you know the length of
     book.cont_add(
         (0..5).map(|_| Content::Empty).collect::<Vec<Content>>(),

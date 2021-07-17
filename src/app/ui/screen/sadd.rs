@@ -1,5 +1,6 @@
 use crate::{
     data::AppData,
+    ALib,
     AppSettings,
     AppState,
     Book,
@@ -207,20 +208,25 @@ impl<'a> SAdd {
                 }
                 data.library.add_book(&self.title, bk);
                 self.book = None;
-                if self.read {
+                if self.read || self.follow {
                     let id = *data.library.titles.id(&self.title).unwrap();
-                    data.library.add_to_group("Reading", id)
-                }
-                let mut cmds = vec![];
-                if self.follow {
-                    data.library.cur =
-                        *data.library.titles.id(&self.title).unwrap();
-                    cmds.push(Command::perform(async {}, |_| {
-                        AppState::Reader.into()
+                    if self.read {
+                        data.library.add_to_group("Reading", id)
+                    }
+                    let mut cmds = vec![];
+                    if self.follow {
+                        cmds.push(Command::perform(async {}, |_| {
+                            AppState::Reader.into()
+                        }));
+                        cmds.push(Command::perform(async {}, move |_| {
+                            ALib::Select(id).into()
+                        }))
+                    }
+                    cmds.push(Command::perform(async {}, move |_| {
+                        AAdd::UpdateTitle("".into()).into()
                     }));
+                    return Command::batch(cmds);
                 }
-                self.title = "".into();
-                return Command::batch(cmds);
             }
             AAdd::UpdateErr(t) => {
                 self.err = t;

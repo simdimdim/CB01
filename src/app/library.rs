@@ -1,6 +1,7 @@
-use crate::Bimap;
+use crate::{Bimap, APP_NAME};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    path::PathBuf,
     sync::atomic::{AtomicU16, Ordering},
 };
 
@@ -10,9 +11,11 @@ pub mod content;
 pub use book::*;
 pub use chapter::*;
 pub use content::*;
-use num::cast::AsPrimitive;
 
-pub(super) static ID_COUNTER: AtomicU16 = AtomicU16::new(0);
+pub(crate) type Id = u16;
+type IdStaticType = AtomicU16;
+
+pub(super) static ID_COUNTER: IdStaticType = IdStaticType::new(0);
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub String);
@@ -21,13 +24,10 @@ pub struct Library {
     pub titles: Bimap<Label, Id>,
     pub books:  BTreeMap<Id, Book>,
     pub groups: HashMap<String, HashSet<Id>>,
-    pub cur:    Id,
 }
 
 impl Library {
-    pub fn current(&mut self) -> &mut Book {
-        self.books.get_mut(&self.cur).unwrap()
-    }
+    pub fn name(&mut self, id: Id) -> Label { self.titles.title(id).unwrap() }
 
     pub fn book(&mut self, name: &Label) -> &Book {
         let id = self.book_id(name).clone();
@@ -124,6 +124,16 @@ impl Library {
         })
     }
 
+    pub fn get_groups(&self) -> Vec<&String> { self.groups.keys().collect() }
+
+    pub fn get_group_names(&self, name: &str) -> Option<Vec<Label>> {
+        self.groups.get(name).map(|h| {
+            h.into_iter()
+                .filter_map(|&n| self.titles.title(n))
+                .collect()
+        })
+    }
+
     pub fn group_size(&mut self, name: &str) -> usize {
         if let Some(hs) = self.groups.get(name) {
             hs.len()
@@ -144,20 +154,24 @@ impl Library {
 impl Default for Library {
     fn default() -> Self {
         let mut titles = Bimap::new();
-        let k = titles.add_name::<Id>("No Books.".into());
         let mut books = BTreeMap::new();
-        books.insert(k, Book::new(None));
+        let (_, b) = Book::open("", PathBuf::from("."));
+        books.insert(titles.add_name::<Id>("Runtime dir".into()), b);
         let mut groups = HashMap::new();
         groups.insert("Reading".to_owned(), HashSet::new());
         Self {
             titles,
             books,
             groups,
-            cur: k,
         }
     }
 }
 
 impl<T: ToString> From<T> for Label {
     fn from(s: T) -> Self { Self(s.to_string()) }
+}
+impl core::ops::Deref for Label {
+    type Target = String;
+
+    fn deref(self: &'_ Self) -> &'_ Self::Target { &self.0 }
 }

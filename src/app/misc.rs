@@ -1,7 +1,6 @@
 use super::ID_COUNTER;
 use crate::{Id, Library};
 use fxhash::{FxBuildHasher, FxHasher};
-use num::cast::AsPrimitive;
 use std::hash::{BuildHasher, Hash};
 
 #[derive(Debug, Clone)]
@@ -43,10 +42,12 @@ where
     }
 
     /// Returns the Id associated with a title if the title exists
-    pub fn id(&mut self, key: &K) -> Option<&V> { self.map.get_by_left(key) }
+    pub fn id(&self, key: &K) -> Option<&V> { self.map.get_by_left(key) }
 
     /// Returns the name associated with an Id if the Id exists
-    pub fn title(&mut self, key: V) -> Option<&K> { self.map.get_by_right(&key) }
+    pub fn title(&self, key: V) -> Option<K> {
+        self.map.get_by_right(&key).map(K::to_owned)
+    }
 
     /// returns true on success
     pub fn rename_by_title(&mut self, old: &K, new: K) -> bool {

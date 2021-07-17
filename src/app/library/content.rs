@@ -87,12 +87,13 @@ impl Content {
     }
 
     // tempt, to be adopted by the translator struct/macro
-    pub fn view(&self, columns: Option<u16>) -> Element<Message> {
+    pub fn view(&self, _columns: Option<u16>) -> Element<Message> {
         use iced::{HorizontalAlignment, Length, Text, VerticalAlignment};
+        //Portion(columns.unwrap_or(1))
         match self {
             Self::Image { pb, .. } => Image::new(Handle::from_path(pb))
-                .width(Length::FillPortion(columns.unwrap_or(1)))
-                .height(Length::FillPortion(columns.unwrap_or(1)))
+                .width(Length::Fill)
+                .height(Length::Fill)
                 .into(),
             Self::Text { text, .. } => Text::new(text.clone())
                 .width(Length::Fill)

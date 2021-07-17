@@ -120,7 +120,19 @@ impl Application for App {
                             alt: false,
                         },
                 }) => {
-                    self.data.reversed = !self.data.reversed;
+                    self.screens.sread.rev = !self.screens.sread.rev;
+                }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::S,
+                    modifiers:
+                        Modifiers {
+                            control: true,
+                            logo: false,
+                            shift: false,
+                            alt: false,
+                        },
+                }) => {
+                    self.screens.sread.single = !self.screens.sread.single;
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::D,
@@ -165,8 +177,7 @@ impl Application for App {
                             logo: false,
                         },
                 }) => {
-                    let cur = self.data.current.len() as f32;
-                    self.update(ARead::Prev(cur).into(), clipboard);
+                    self.update(ARead::Prev.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code:
@@ -184,8 +195,7 @@ impl Application for App {
                             logo: false,
                         },
                 }) => {
-                    let cur = self.data.current.len() as f32;
-                    self.update(ARead::Next(cur).into(), clipboard);
+                    self.update(ARead::Next.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::End,

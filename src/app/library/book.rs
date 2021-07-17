@@ -1,14 +1,11 @@
-use super::{Chapter, Content};
-use crate::Page;
-use itertools::Either;
+use crate::{Chapter, Content, Id, Label, Page};
+use itertools::{Either, Itertools};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::{btree_map::Range, BTreeMap},
     ops::RangeInclusive,
     path::PathBuf,
 };
-
-pub(crate) type Id = u16;
 
 pub enum Position {
     First,
@@ -35,9 +32,28 @@ impl Book {
         }
     }
 
-    pub fn open<T: Into<String>>(label: T) -> Book {
-        let _pb = PathBuf::from("library").join(label.into());
-        Book::default()
+    pub fn open<T: Into<Label>>(label: T, pb: PathBuf) -> (Label, Book) {
+        let title: Label = label.into();
+        let pb = pb.join(&title.0);
+        let mut book = Book::default();
+        book.cont_add(
+            pb.read_dir()
+                .expect("read_dir call failed")
+                .flat_map(|d| d)
+                .fold(vec![], |mut acc, d| {
+                    d.path().extension().map(|f| {
+                        if f == "jpg" {
+                            acc.push(Content::Image {
+                                pb:  d.path(),
+                                src: None,
+                            });
+                        }
+                    });
+                    acc
+                }),
+            None,
+        );
+        (title, book)
     }
 
     pub fn get_cover(&self) -> &Content { self.content.get(&0).unwrap() }
@@ -120,7 +136,9 @@ impl Book {
         }
     }
 
-    pub fn key_max(rng: Either<BTreeMap<Id, Content>, Range<Id, Content>>) -> Id {
+    pub fn key_max(
+        rng: Either<&BTreeMap<Id, Content>, Range<Id, Content>>,
+    ) -> Id {
         match rng {
             Either::Left(a) => *a.par_iter().max_by_key(|(&k, _)| k).unwrap().0,
             Either::Right(b) => *b.max_by_key(|(&k, _)| k).unwrap().0,
@@ -187,8 +205,15 @@ impl Book {
         self.cont_batch(self.chapters[0].range())
     }
 
+    pub fn chap_set_len(&mut self, ch: usize, l: Option<Id>) -> &mut Self {
+        let idx = if self.valid(ch) { ch } else { 0 };
+        l.map(|n| self.chapters[idx].len = n.saturating_sub(1));
+        self
+    }
+
     pub fn advance_by(&mut self, n: Id) -> Range<Id, Content> {
-        self.chapters[0].offset = self.chapters[0].offset.saturating_add(n);
+        self.chapters[0].offset = (self.cont_len() as Id)
+            .min(self.chapters[0].offset.saturating_add(n));
         self.cont_batch(self.last().range())
     }
 

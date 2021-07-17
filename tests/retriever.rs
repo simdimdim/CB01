@@ -7,9 +7,9 @@ async fn fetch() {
     let p = "https://readmanganato.com/manga-fz982434/chapter-16".into();
     let r = Retriever::default();
     let page = r.get(p).await;
-    let next = r.next(&page).await;
-    let index = r.index(&next.unwrap()).await;
-    let _ = r.links(&index).await;
+    let _next = r.next(&page).await;
+    // let index = r.index(&next.unwrap()).await;
+    // let _ = r.links(&index).await;
 }
 
 #[tokio::test]
@@ -21,6 +21,8 @@ async fn dl_test() {
         pb:  PathBuf::from("library/picture.jpg"),
         src: Some(p.url.clone()),
     };
-    tokio::fs::write("library/pivture2.jpg", &*p.image(&r.client).await).await;
+    // tokio::fs::write("library/pivture2.jpg", &*p.image(&r.client).await)
+    //     .await
+    //     .unwrap();
     c.save(&p.image(&r.client).await).await
 }

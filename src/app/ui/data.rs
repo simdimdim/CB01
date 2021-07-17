@@ -5,7 +5,4 @@ use std::{path::PathBuf, sync::Arc};
 pub struct AppData {
     pub library:   Library,
     pub retriever: Arc<Retriever>,
-    pub current:   Box<Vec<Content>>,
-    pub flipped:   bool,
-    pub reversed:  bool,
 }
