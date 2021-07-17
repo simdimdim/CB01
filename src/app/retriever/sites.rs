@@ -21,18 +21,26 @@ impl Include {
             Box::new(ManganatoCom),
         );
         hm.insert(
-            Host::parse("s18.mkklcdnv6tempv4.com").unwrap(),
+            Host::parse("mkklcdnv6temp.com").unwrap(),
             Box::new(ManganatoCom),
         );
         hm.insert(
-            Host::parse("bu4.mkklcdnv6tempv4.com").unwrap(),
+            Host::parse("mkklcdnv6tempv1.com").unwrap(),
+            Box::new(ManganatoCom),
+        );
+        hm.insert(
+            Host::parse("mkklcdnv6tempv2.com").unwrap(),
+            Box::new(ManganatoCom),
+        );
+        hm.insert(
+            Host::parse("mkklcdnv6tempv3.com").unwrap(),
+            Box::new(ManganatoCom),
+        );
+        hm.insert(
+            Host::parse("mkklcdnv6tempv4.com").unwrap(),
             Box::new(ManganatoCom),
         );
         hm.insert(Host::parse("zinmanga.com").unwrap(), Box::new(ZimangaCom));
-        hm.insert(
-            Host::parse("z-cdn.zinmanga.com").unwrap(),
-            Box::new(ZimangaCom),
-        );
     }
 }
 

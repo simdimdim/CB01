@@ -1,13 +1,14 @@
 use crate::{Id, Label};
 use reqwest::Url;
-use std::ops::RangeInclusive;
+use std::ops::{Deref, RangeInclusive};
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Chapter {
     pub offset: Id,
     pub len:    Id,
     pub src:    Option<Url>,
-    pub name:   Option<Label>,
+    pub name:   Option<String>,
+    pub full:   bool,
 }
 impl Chapter {
     pub fn contains(&self, n: &Id) -> bool {
@@ -94,7 +95,7 @@ impl Chapter {
     }
 
     pub fn set_name(&mut self, name: Option<Label>) -> &mut Self {
-        self.name = name;
+        self.name = name.as_deref().map(String::to_owned);
         self
     }
 }

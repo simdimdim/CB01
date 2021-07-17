@@ -1,4 +1,5 @@
 use crate::{Bimap, APP_NAME};
+use core::ops::Deref;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
@@ -170,7 +171,7 @@ impl Default for Library {
 impl<T: ToString> From<T> for Label {
     fn from(s: T) -> Self { Self(s.to_string()) }
 }
-impl core::ops::Deref for Label {
+impl Deref for Label {
     type Target = String;
 
     fn deref(self: &'_ Self) -> &'_ Self::Target { &self.0 }

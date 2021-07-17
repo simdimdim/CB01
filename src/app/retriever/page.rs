@@ -58,11 +58,11 @@ impl Page {
     /// Get the `example.com` from `http://example.com/path/`
     /// would fail for http://localhost/path
     pub fn domain(&self) -> Host {
-        self.url
-            .clone()
-            .host()
-            .map(|s| s.to_owned())
-            .expect("No host.")
+        let url = self.url.clone();
+        let domain = url.domain().expect("No host.");
+        let split = domain.split('.').collect::<Vec<_>>();
+        let l = split.len();
+        Host::parse(split[l.saturating_sub(2)..l].join(".").as_str()).unwrap()
     }
 
     /// Free most of a Page

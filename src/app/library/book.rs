@@ -42,7 +42,12 @@ impl Book {
                 .flat_map(|d| d)
                 .fold(vec![], |mut acc, d| {
                     d.path().extension().map(|f| {
-                        if f == "jpg" {
+                        if f == "jpg" ||
+                            f == "gif" ||
+                            f == "png" ||
+                            f == "jpeg" ||
+                            f == "tiff"
+                        {
                             acc.push(Content::Image {
                                 pb:  d.path(),
                                 src: None,

@@ -87,15 +87,17 @@ impl Retriever {
         // use tokio::time::sleep;
         // tokio::time::sleep(std::time::Duration::from_secs_f32(0.250)). await;
         // let mut res = vec![];
-
         page.images(self.finder(page))
             .await
             .into_iter()
             .map(|mut p| {
-                let h = self.finder(&p).headers();
-                let req =
-                    self.client.get(p.url.clone()).headers(h).build().unwrap();
-                p.prep(req);
+                p.prep(
+                    self.client
+                        .get(p.url.clone())
+                        .headers(self.finder(&p).headers())
+                        .build()
+                        .unwrap(),
+                );
                 p
             })
             .collect()
@@ -131,9 +133,10 @@ impl Retriever {
             // TODO: to be moved in it's own method and processed later
             // for batch dls take a look at:
             // https://gist.github.com/mtkennerly/b513e7fe89c735e5a5df672c503404d7#file-main-rs-L42
+            // TODO: 
             images.iter_mut().for_each(|p| p.empty());
             bk.chapters[0].offset = 1;
-            bk.chapters[0].len = images.len() as crate::Id;
+            bk.chapters[0].len = 1;
             let name = || title.clone();
             let cnt = join_all(images.into_iter().enumerate().map(
                 |(n, p)| async move {
