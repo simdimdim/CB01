@@ -105,7 +105,7 @@ impl Library {
         });
     }
 
-    pub fn add_to_group(&mut self, name: &String, id: Id) {
+    pub fn add_to_group(&mut self, name: &str, id: Id) {
         self.groups.get_mut(name).unwrap().insert(id);
     }
 

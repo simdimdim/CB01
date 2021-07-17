@@ -42,7 +42,7 @@ impl<'a> Screens {
             AppState::Settings => self.sset.view(settings),
             AppState::Reader => self.sread.view(data, settings),
             AppState::Library => self.slib.view(data),
-            AppState::Add => self.sadd.view(),
+            AppState::Add => self.sadd.view(settings, self.sset.darkmode),
         }
     }
 
