@@ -1,5 +1,5 @@
 use crate::{Id, Library};
-use std::hash::{ Hash};
+use std::hash::Hash;
 
 #[derive(Debug, Clone)]
 pub struct Bimap<K: Clone + Hash + Eq, V: Copy + Hash + Eq> {

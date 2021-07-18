@@ -26,6 +26,9 @@ features = ["tokio", "image", "debug"]
 git = "https://github.com/hecrj/iced"
 [dependencies.iced_native]
 git = "https://github.com/hecrj/iced"
+[dependencies.simple_logger]
+default-features = true # colorized
+version = "1.11.0" 
 [dependencies.reqwest]
 features = ["stream", "cookies", "gzip"]
 version = "0.11.4"

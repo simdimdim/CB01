@@ -1,4 +1,4 @@
-use crate::{ AppData, Book, Id, Label, Message, ViewA};
+use crate::{AppData, Book, Id, Label, Message, ViewA};
 use iced::{
     pane_grid::{Axis, Content, State},
     Color,

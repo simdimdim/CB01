@@ -1,5 +1,5 @@
 use crate::{Chapter, Content, Id, Label, Page};
-use itertools::{Either, };
+use itertools::Either;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::{btree_map::Range, BTreeMap},

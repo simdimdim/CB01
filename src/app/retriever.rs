@@ -1,19 +1,17 @@
 use crate::{Book, Content, Label};
 use chrono::Duration;
-use futures::future::{join_all, OptionFuture};
-use reqwest::{Client, Url};
+use reqwest::{cookie::Jar, Client, Url};
 use sites::Include;
 use std::{
     collections::{
         btree_map::Entry::{Occupied, Vacant},
-        hash_map::Entry,
         BTreeMap,
         HashMap,
     },
     path::PathBuf,
     sync::Arc,
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use url::Host;
 
 pub mod delay;
@@ -30,8 +28,8 @@ type Find = Box<dyn Finder>;
 #[derive(Debug, Clone)]
 pub struct Retriever {
     pub client: Client,
-    pub jar:    Arc<reqwest::cookie::Jar>,
-    pub delays: Arc<tokio::sync::Mutex<BTreeMap<Host, Delay>>>,
+    pub jar:    Arc<Jar>,
+    pub delays: Arc<Mutex<BTreeMap<Host, Delay>>>,
     pub find:   Arc<RwLock<Vec<Find>>>,
     pub hosts:  Arc<RwLock<HashMap<Host, usize>>>,
 }
@@ -39,7 +37,7 @@ pub struct Retriever {
 impl Default for Retriever {
     fn default() -> Self {
         static AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0";
-        let ja = Arc::new(reqwest::cookie::Jar::default());
+        let ja = Arc::new(Jar::default());
         let cl = Client::builder()
             .user_agent(AGENT)
             .connection_verbose(true)
@@ -192,15 +190,10 @@ impl Retriever {
         };
     }
 
-    pub async fn add_related_batch(&self, from: &Url, rel: Vec<&Url>) {
-        let host = from.host().unwrap().to_owned();
-        if self.hosts.read().await.contains_key(&host) {
+    pub async fn add_related_batch(&self, from: &Page, rel: Vec<&Page>) {
+        if self.hosts.read().await.contains_key(&from.domain()) {
             for u in rel.into_iter() {
-                self.add_related(
-                    &Page::from(from.to_string()),
-                    &Page::from(u.to_string()),
-                )
-                .await;
+                self.add_related(from, u).await;
             }
         }
     }

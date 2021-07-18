@@ -1,4 +1,4 @@
-use crate::{  AppSettings, Message, Theme, ViewA};
+use crate::{AppSettings, Message, Theme, ViewA};
 use iced::{
     button,
     Align,

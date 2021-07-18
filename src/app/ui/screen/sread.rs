@@ -11,6 +11,7 @@ use iced::{
     Space,
 };
 use itertools::Either;
+use log::error;
 
 #[derive(Debug)]
 pub struct SRead {
@@ -120,29 +121,41 @@ impl SRead {
                 // TODO: Add a bit more logic concerning single strip
                 // and multi-page modes
                 let mut current = 0.;
-                self.book.as_ref().map(|t| {
-                    let book = data.library.book_mut(t);
-                    book.backtrack_by(self.per);
-                    current = book.last().len as f32;
-                });
-                self.scroff = (self.scroff -
-                    (current / self.per as f32 - 1.).recip())
-                .max(0.);
-                self.scroll.snap_to(self.scroff);
+
+                match self.single {
+                    false => {
+                        self.book.as_ref().map(|t| {
+                            let book = data.library.book_mut(t);
+
+                            book.backtrack_by(self.per);
+                            current = book.last().len as f32;
+                        });
+                        self.scroff = (self.scroff -
+                            (current / self.per as f32 - 1.).recip())
+                        .max(0.);
+                        self.scroll.snap_to(self.scroff);
+                    }
+                    true => error!("Unimplemented"),
+                };
             }
             ARead::Next => {
                 // TODO: Add a bit more logic concerning single strip
                 // and multi-page modes
                 let mut current = 0.;
-                self.book.as_ref().map(|t| {
-                    let book = data.library.book_mut(t);
-                    book.advance_by(self.per);
-                    current = book.last().len as f32;
-                });
-                self.scroff = (self.scroff +
-                    (current / self.per as f32 - 1.).recip())
-                .min(1.);
-                self.scroll.snap_to(self.scroff);
+                match self.single {
+                    false => {
+                        self.book.as_ref().map(|t| {
+                            let book = data.library.book_mut(t);
+                            book.advance_by(self.per);
+                            current = book.last().len as f32;
+                        });
+                        self.scroff = (self.scroff +
+                            (current / self.per as f32 - 1.).recip())
+                        .min(1.);
+                        self.scroll.snap_to(self.scroff);
+                    }
+                    true => error!("Unimplemented"),
+                };
             }
             ARead::End => {
                 self.scroff = 1.;

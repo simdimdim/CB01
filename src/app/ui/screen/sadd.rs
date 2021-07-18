@@ -137,9 +137,13 @@ impl<'a> SAdd {
 
         let addbtn = Button::new(
             &mut self.addbtn,
-            Text::new(if self.book.is_none() { "Fetch" } else { "Add" })
-                .vertical_alignment(VerticalAlignment::Center)
-                .horizontal_alignment(iced::HorizontalAlignment::Center),
+            Text::new(if self.book.is_none() {
+                "Fetch"
+            } else {
+                " Add "
+            })
+            .vertical_alignment(VerticalAlignment::Center)
+            .horizontal_alignment(iced::HorizontalAlignment::Center),
         )
         .width(Length::Shrink)
         .height(Length::Units(52))

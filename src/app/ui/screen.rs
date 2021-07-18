@@ -1,4 +1,4 @@
-use crate::{settings::AppState, AppData, AppSettings,  Message};
+use crate::{settings::AppState, AppData, AppSettings, Message};
 use iced::{Command, Element};
 
 pub mod sadd;

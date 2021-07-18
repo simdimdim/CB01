@@ -1,7 +1,9 @@
 use iced::{window::Settings as WSettings, Application, Settings};
 use pagepal_ui::App;
+use simple_logger::SimpleLogger;
 
 pub fn main() -> iced::Result {
+    SimpleLogger::from_env().init().unwrap();
     App::run(Settings {
         antialiasing: true,
         exit_on_close_request: true,

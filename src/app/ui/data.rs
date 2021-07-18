@@ -1,5 +1,5 @@
-use crate::{ Library, Retriever};
-use std::{  sync::Arc};
+use crate::{Library, Retriever};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Default)]
 pub struct AppData {
