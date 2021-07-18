@@ -1,5 +1,5 @@
-use crate::{Content, Library, Retriever};
-use std::{path::PathBuf, sync::Arc};
+use crate::{ Library, Retriever};
+use std::{  sync::Arc};
 
 #[derive(Debug, Clone, Default)]
 pub struct AppData {

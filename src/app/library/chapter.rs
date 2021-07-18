@@ -1,6 +1,6 @@
 use crate::{Id, Label};
 use reqwest::Url;
-use std::ops::{Deref, RangeInclusive};
+use std::ops::RangeInclusive;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Chapter {

@@ -92,7 +92,7 @@ impl<'a> SAdd {
 
     pub fn view(
         &mut self, settings: &mut AppSettings, darkmode: bool,
-    ) -> Element<Message> {
+    ) -> Element<'_, Message> {
         let err = Text::new(self.err.say().to_owned())
             .size(22)
             .color(Color {

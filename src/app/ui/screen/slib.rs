@@ -1,4 +1,4 @@
-use crate::{ASet, AppData, Book, Id, Label, Message, ViewA};
+use crate::{ AppData, Book, Id, Label, Message, ViewA};
 use iced::{
     pane_grid::{Axis, Content, State},
     Color,
@@ -25,7 +25,7 @@ pub enum ALib {
 impl SLib {
     pub fn new() -> Self { Self { panes: None } }
 
-    pub fn view(&mut self, data: &mut AppData) -> Element<Message> {
+    pub fn view(&mut self, data: &mut AppData) -> Element<'_, Message> {
         let _l = data.library.group_size("Reading");
         let g = data
             .library
@@ -43,7 +43,7 @@ impl SLib {
         self.panes = Some(panes);
         let pane_grid = PaneGrid::new(
             self.panes.as_mut().unwrap(),
-            |_pane, b| -> Content<Message> {
+            |_pane, b| -> Content<'_, Message> {
                 let content =
                     Text::new(format!("{}", *b.0)).size(32).color(Color {
                         r: 0.,

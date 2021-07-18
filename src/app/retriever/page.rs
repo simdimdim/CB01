@@ -1,9 +1,7 @@
 use crate::{Finder, Label};
 use chrono::{DateTime, Duration, Utc};
 use reqwest::{Client, Request, Url};
-use select::document::Document;
 use std::{
-    cell::RefCell,
     hash::{Hash, Hasher},
     str::FromStr,
     sync::{Arc, Mutex},
@@ -74,7 +72,7 @@ impl Page {
     }
 
     /// Get the chapter,page number (and index?)
-    pub fn num(&self, find: Find) -> (u16, u16, String) { find.num(self) }
+    pub fn num(&self, find: Find<'_>) -> (u16, u16, String) { find.num(self) }
 
     /// Get the title with a Finder
     pub async fn title(&self, find: Find<'_>) -> Label {

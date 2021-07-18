@@ -11,42 +11,22 @@ type Input<'a> = &'a String;
 
 pub(crate) struct Include;
 impl Include {
-    pub fn custom(hm: &mut HashMap<Host, Box<dyn Finder>>) {
-        hm.insert(
-            Host::parse("manganato.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(
-            Host::parse("readmanganato.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(
-            Host::parse("mkklcdnv6temp.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(
-            Host::parse("mkklcdnv6tempv1.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(
-            Host::parse("mkklcdnv6tempv2.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(
-            Host::parse("mkklcdnv6tempv3.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(
-            Host::parse("mkklcdnv6tempv4.com").unwrap(),
-            Box::new(ManganatoCom),
-        );
-        hm.insert(Host::parse("zinmanga.com").unwrap(), Box::new(ZimangaCom));
+    pub fn custom(
+        find: &mut Vec<Box<dyn Finder>>, hm: &mut HashMap<Host, usize>,
+    ) {
+        hm.insert(Host::parse("manganato.com").unwrap(), find.len());
+        hm.insert(Host::parse("readmanganato.com").unwrap(), find.len());
+        find.push(Box::new(ManganatoCom));
+        hm.insert(Host::parse("zinmanga.com").unwrap(), find.len());
+        find.push(Box::new(ZimangaCom));
     }
 }
 
 #[derive(Debug)]
 struct ManganatoCom;
 impl Finder for ManganatoCom {
+    fn name(&self) -> &str { "readmanganato" }
+
     fn pred(&self) -> &str { "NEXT" }
 
     fn headers(&self) -> HeaderMap {
@@ -59,6 +39,8 @@ impl Finder for ManganatoCom {
 #[derive(Debug)]
 struct ZimangaCom;
 impl Finder for ZimangaCom {
+    fn name(&self) -> &str { "zinmanga" }
+
     fn pred(&self) -> &str { "Next" }
 
     fn headers(&self) -> HeaderMap {
@@ -67,7 +49,7 @@ impl Finder for ZimangaCom {
         hm
     }
 
-    fn images(&self, doc: Input) -> Vec<Page> {
+    fn images(&self, doc: Input<'_>) -> Vec<Page> {
         let res = Document::from(doc.as_str())
             .select(Child(Child(Name("div"), Name("div")), Name("img")))
             .map(|a| {

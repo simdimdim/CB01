@@ -1,4 +1,4 @@
-use crate::{data::AppData, AppSettings, Book, Content, Label, Message, ViewA};
+use crate::{data::AppData, AppSettings, Label, Message, ViewA};
 use iced::{
     scrollable,
     Align,
@@ -11,7 +11,6 @@ use iced::{
     Space,
 };
 use itertools::Either;
-use std::{path::PathBuf, rc::Rc};
 
 #[derive(Debug)]
 pub struct SRead {
@@ -72,8 +71,18 @@ impl SRead {
                 let el = cnt.view(Some(self.per));
                 scroll = scroll.push(el);
             }
-            Either::Right(scroll)
+            let row = Row::new()
+                .push(Space::new(Length::Fill, Length::Fill))
+                .push(
+                    scroll
+                        .on_scroll(move |off| ARead::Scrolled(off).into())
+                        .width(Length::FillPortion(2))
+                        .max_width(settings.width),
+                )
+                .push(Space::new(Length::Fill, Length::Fill));
+            Either::Right(row)
         };
+
         match res {
             Either::Left(res) => Container::new(
                 res.max_width(settings.width)
@@ -87,16 +96,12 @@ impl SRead {
             .align_x(Align::Center)
             .align_y(Align::Center)
             .into(),
-            Either::Right(scroll) => Container::new(
-                scroll
-                    .on_scroll(move |off| ARead::Scrolled(off).into())
-                    .max_width(settings.width),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Align::Center)
-            .align_y(Align::Center)
-            .into(),
+            Either::Right(scroll) => Container::new(scroll)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Align::Center)
+                .align_y(Align::Center)
+                .into(),
         }
     }
 

@@ -1,5 +1,5 @@
 use crate::{Chapter, Content, Id, Label, Page};
-use itertools::{Either, Itertools};
+use itertools::{Either, };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::{btree_map::Range, BTreeMap},
@@ -65,7 +65,7 @@ impl Book {
 
     pub fn last(&self) -> &Chapter { &self.chapters[0] }
 
-    pub fn chapter(&self, n: Id) -> Option<Range<Id, Content>> {
+    pub fn chapter(&self, n: Id) -> Option<Range<'_, Id, Content>> {
         self.valid(n as usize)
             .then(|| self.cont_batch(self.chapters[n as usize].range()))
     }
@@ -124,7 +124,9 @@ impl Book {
 
     pub fn content(&self, n: &Id) -> Option<&Content> { self.content.get(n) }
 
-    pub fn cont_batch(&self, range: RangeInclusive<Id>) -> Range<Id, Content> {
+    pub fn cont_batch(
+        &self, range: RangeInclusive<Id>,
+    ) -> Range<'_, Id, Content> {
         self.content.range(range)
     }
 
@@ -142,7 +144,7 @@ impl Book {
     }
 
     pub fn key_max(
-        rng: Either<&BTreeMap<Id, Content>, Range<Id, Content>>,
+        rng: Either<&BTreeMap<Id, Content>, Range<'_, Id, Content>>,
     ) -> Id {
         match rng {
             Either::Left(a) => *a.par_iter().max_by_key(|(&k, _)| k).unwrap().0,
@@ -206,7 +208,7 @@ impl Book {
 
     pub fn save(&self, _pb: PathBuf) { self.content.iter(); }
 
-    pub fn current(&self) -> Range<Id, Content> {
+    pub fn current(&self) -> Range<'_, Id, Content> {
         self.cont_batch(self.chapters[0].range())
     }
 
@@ -216,13 +218,13 @@ impl Book {
         self
     }
 
-    pub fn advance_by(&mut self, n: Id) -> Range<Id, Content> {
+    pub fn advance_by(&mut self, n: Id) -> Range<'_, Id, Content> {
         self.chapters[0].offset = (self.cont_len() as Id)
             .min(self.chapters[0].offset.saturating_add(n));
         self.cont_batch(self.last().range())
     }
 
-    pub fn backtrack_by(&mut self, n: Id) -> Range<Id, Content> {
+    pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
         self.chapters[0].offset = self.chapters[0].offset.saturating_sub(n);
         self.cont_batch(self.last().range())
     }

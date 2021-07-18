@@ -1,7 +1,6 @@
 use crate::{Library, APP_NAME};
 use directories_next::{ProjectDirs, UserDirs};
 use iced::{
-    executor,
     keyboard::Modifiers,
     window::{
         self,
@@ -305,7 +304,7 @@ impl Application for App {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&mut self) -> Element<'_, Message> {
         let App { data, settings, .. } = self;
         self.screens.view(data, settings)
     }

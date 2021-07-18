@@ -1,4 +1,4 @@
-use crate::{Bimap, APP_NAME};
+use crate::{Bimap, };
 use core::ops::Deref;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},

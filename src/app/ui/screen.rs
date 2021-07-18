@@ -1,4 +1,4 @@
-use crate::{settings::AppState, AppData, AppSettings, Id, Message};
+use crate::{settings::AppState, AppData, AppSettings,  Message};
 use iced::{Command, Element};
 
 pub mod sadd;
@@ -37,7 +37,7 @@ impl<'a> Screens {
 
     pub fn view(
         &'a mut self, data: &'a mut AppData, settings: &'a mut AppSettings,
-    ) -> Element<Message> {
+    ) -> Element<'_, Message> {
         match self.state {
             AppState::Settings => self.sset.view(settings),
             AppState::Reader => self.sread.view(data, settings),

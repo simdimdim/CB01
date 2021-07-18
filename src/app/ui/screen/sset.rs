@@ -1,7 +1,6 @@
-use crate::{app::ui::settings::Styled, AppSettings, Message, Theme, ViewA};
+use crate::{  AppSettings, Message, Theme, ViewA};
 use iced::{
     button,
-    checkbox,
     Align,
     Button,
     Checkbox,
@@ -14,7 +13,6 @@ use iced::{
     Row,
     Space,
     Text,
-    VerticalAlignment,
 };
 
 #[derive(Debug)]
@@ -39,7 +37,7 @@ impl SSet {
         }
     }
 
-    pub fn view(&mut self, settings: &mut AppSettings) -> Element<Message> {
+    pub fn view(&mut self, settings: &mut AppSettings) -> Element<'_, Message> {
         let anywhere =
             Checkbox::new(self.anywhere, "Paste links from any screen", |a| {
                 ASet::ToggleAnywhere(a).into()

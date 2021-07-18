@@ -6,8 +6,8 @@ use select::{
 };
 
 type Input<'a> = &'a String;
-
 pub trait Finder: std::fmt::Debug + Send + Sync {
+    fn name(&self) -> &str;
     fn pred(&self) -> &str { "Next" }
     fn split_by(&self) -> &str { " Chapter" }
     fn num(&self, page: &Page) -> (u16, u16, String) {
@@ -43,7 +43,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             _ => (0, 0, "".to_string()),
         }
     }
-    fn title(&self, doc: Input) -> Label {
+    fn title(&self, doc: Input<'_>) -> Label {
         let title = Document::from(doc.as_str())
             .select(Name("title"))
             .into_selection()
@@ -63,8 +63,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         }
         .into()
     }
-    fn index(&self, _doc: Input) -> Option<Page> { None }
-    fn links(&self, doc: Input) -> Vec<Page> {
+    fn index(&self, _doc: Input<'_>) -> Option<Page> { None }
+    fn links(&self, doc: Input<'_>) -> Vec<Page> {
         Document::from(doc.as_str())
             .select(Descendant(
                 Name("div"),
@@ -81,7 +81,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-    fn next(&self, doc: Input) -> Option<Page> {
+    fn next(&self, doc: Input<'_>) -> Option<Page> {
         Document::from(doc.as_str())
             .select(Child(Name("a"), Text))
             .filter(|a| a.text().contains(self.pred()))
@@ -92,7 +92,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-    fn text(&self, doc: Input) -> Vec<String> {
+    fn text(&self, doc: Input<'_>) -> Vec<String> {
         Document::from(doc.as_str())
             .select(Child(Name("div"), Name("p")))
             .map(|a| a.parent().unwrap().children().into_selection())
@@ -103,7 +103,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .map(|a| a.text())
             .collect()
     }
-    fn images(&self, doc: Input) -> Vec<Page> {
+    fn images(&self, doc: Input<'_>) -> Vec<Page> {
         Document::from(doc.as_str())
             .select(Child(Name("div"), Name("img")))
             .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
@@ -128,4 +128,6 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultFinder;
-impl Finder for DefaultFinder {}
+impl Finder for DefaultFinder {
+    fn name(&self) -> &str { "default" }
+}
