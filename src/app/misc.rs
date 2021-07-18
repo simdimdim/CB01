@@ -5,10 +5,17 @@ use std::hash::Hash;
 pub struct Bimap<K: Clone + Hash + Eq, V: Copy + Hash + Eq> {
     pub map: bimap::BiMap<K, V>,
 }
-
-impl<K: Clone + Hash + Eq, V: Copy + Hash + Eq> Bimap<K, V>
+impl<K, V> Default for Bimap<K, V>
 where
-    V: Into<K>,
+    K: Clone + Hash + Eq,
+    V: Copy + Hash + Eq + Into<K>,
+{
+    fn default() -> Self { Self::new() }
+}
+impl<K, V> Bimap<K, V>
+where
+    K: Clone + Hash + Eq,
+    V: Copy + Hash + Eq + Into<K>,
 {
     pub fn new() -> Self {
         let map = bimap::hash::BiHashMap::<K, V>::new();
@@ -25,7 +32,7 @@ where
             *self.map.get_by_left(&key).unwrap()
         } else {
             let id = Library::new_id::<S>().into();
-            self.map.insert_no_overwrite(key, id.clone()).ok();
+            self.map.insert_no_overwrite(key, id).ok();
             id
         }
     }

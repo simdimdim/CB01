@@ -35,13 +35,16 @@ impl Book {
     pub fn open<T: Into<Label>>(label: T, pb: PathBuf) -> (Label, Book) {
         let title: Label = label.into();
         let pb = pb.join(&title.0);
+        let mut cover = pb.join(&title.0);
+        cover.set_extension("jpg");
+
+        if cover.exists() {}
         let mut book = Book::default();
         book.cont_add(
-            pb.read_dir()
-                .expect("read_dir call failed")
-                .flat_map(|d| d)
-                .fold(vec![], |mut acc, d| {
-                    d.path().extension().map(|f| {
+            pb.read_dir().expect("read_dir call failed").flatten().fold(
+                vec![],
+                |mut acc, d| {
+                    if let Some(f) = d.path().extension() {
                         if f == "jpg" ||
                             f == "gif" ||
                             f == "png" ||
@@ -53,9 +56,10 @@ impl Book {
                                 src: None,
                             });
                         }
-                    });
+                    }
                     acc
-                }),
+                },
+            ),
             None,
         );
         (title, book)
@@ -153,7 +157,7 @@ impl Book {
     }
 
     pub fn cont_add(&mut self, cont: Vec<Content>, pos: Option<Position>) {
-        let default = (&(1 as Id), &Content::Empty);
+        let default = (&1u16, &Content::Empty);
         let split = match pos.unwrap_or(Position::Last) {
             Position::First => 1,
             Position::BeforeCurrent => 1.max(self.chapters[0].start() as usize),
@@ -168,21 +172,20 @@ impl Book {
         // or better conditional lengthen depending on insert pos
 
         if sp {
-            let first = self
+            let first = *self
                 .content
                 .range(split..)
                 .next()
-                .unwrap_or(self.content.iter().rev().next().unwrap())
-                .0
-                .clone();
+                .unwrap_or_else(|| self.content.iter().rev().next().unwrap())
+                .0;
+
             let mut leftovers = self.content.split_off(&first);
-            let l = self
+            let l = *self
                 .content
                 .par_iter()
                 .max_by_key(|(&k, _)| k)
                 .unwrap_or(default)
-                .0
-                .clone() +
+                .0 +
                 1;
             cont.into_iter().enumerate().for_each(|(n, content)| {
                 self.content.insert(l + n as Id, content);
@@ -214,7 +217,9 @@ impl Book {
 
     pub fn chap_set_len(&mut self, ch: usize, l: Option<Id>) -> &mut Self {
         let idx = if self.valid(ch) { ch } else { 0 };
-        l.map(|n| self.chapters[idx].len = n.saturating_sub(1));
+        if let Some(n) = l {
+            self.chapters[idx].len = n.saturating_sub(1);
+        }
         self
     }
 

@@ -101,10 +101,8 @@ impl Page {
                         .fold((Vec::new(), 0, 0), |mut acc, s| {
                             if s.to_lowercase().contains("chapter") {
                                 acc.1 += 1;
-                            } else {
-                                if acc.1 != 0 || acc.2 > 1 {
-                                    acc.0.push(s);
-                                }
+                            } else if acc.1 != 0 || acc.2 > 1 {
+                                acc.0.push(s);
                             }
                             acc.2 += 1;
                             acc
@@ -114,7 +112,7 @@ impl Page {
                     index
                         .iter()
                         .rev()
-                        .map(|&a| a)
+                        .copied()
                         .collect::<Vec<_>>()
                         .join("/")
                         .parse()
@@ -165,7 +163,7 @@ impl Page {
     }
 
     /// Download a single image from a Page with an url leading to an image
-    pub async fn image(&self, client: &Client) -> Box<Vec<u8>> {
+    pub async fn image(&self, client: &Client) -> Vec<u8> {
         //        let mut res = client
         //
         // .execute(self.req.as_ref().as_ref().unwrap().try_clone().unwrap())
@@ -176,16 +174,15 @@ impl Page {
         //            ch.append(&mut chunk.to_vec());
         //        }
         //        Box::new(ch)
-        Box::new(
-            client
-                .execute(self.req.as_ref().unwrap().try_clone().unwrap())
-                .await
-                .unwrap()
-                .bytes()
-                .await
-                .unwrap()
-                .to_vec(),
-        )
+
+        client
+            .execute(self.req.as_ref().unwrap().try_clone().unwrap())
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .unwrap()
+            .to_vec()
     }
 
     /// Get a text chapter
@@ -254,9 +251,8 @@ impl Hash for Page {
 impl<T: Into<String>> From<T> for Page {
     fn from(s: T) -> Self {
         let mut ok = Self::default();
-        match s.into().parse::<Url>() {
-            Ok(u) => ok.url = u,
-            Err(_) => (),
+        if let Ok(u) = s.into().parse::<Url>() {
+            ok.url = u
         }
         ok
     }

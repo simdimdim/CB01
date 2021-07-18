@@ -21,6 +21,8 @@ impl Chapter {
 
     pub fn len(&self) -> usize { self.len as usize }
 
+    pub fn is_empty(&self) -> bool { false }
+
     pub fn start(&self) -> Id { self.offset }
 
     pub fn end(&self) -> Id { self.offset.saturating_add(self.len) }

@@ -7,7 +7,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub enum Content {
     Image {
         pb:  PathBuf,
@@ -24,6 +24,7 @@ pub enum Content {
     },
     Empty,
 }
+
 impl Content {
     pub fn visual(&self) -> bool {
         match self {
@@ -34,7 +35,7 @@ impl Content {
         }
     }
 
-    pub async fn save(&mut self, data: &Box<Vec<u8>>) {
+    pub async fn save(&mut self, data: &'_ [u8]) {
         match self {
             Self::Image { pb, .. } => {
                 pb.set_extension("jpg");
@@ -147,6 +148,19 @@ impl PartialEq for Content {
             (Content::Empty, Content::Image { .. }) => false,
             (Content::Empty, Content::Text { .. }) => false,
             (Content::Empty, Content::Other { .. }) => false,
+        }
+    }
+}
+impl std::hash::Hash for Content {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Image { pb, .. } => pb.hash(state),
+            Self::Text { pb, text, .. } => {
+                pb.hash(state);
+                text.hash(state);
+            }
+            Self::Other { pb, .. } => pb.hash(state),
+            Self::Empty => (),
         }
     }
 }

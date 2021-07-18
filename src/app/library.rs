@@ -31,7 +31,7 @@ impl Library {
     pub fn name(&mut self, id: Id) -> Label { self.titles.title(id).unwrap() }
 
     pub fn book(&mut self, name: &Label) -> &Book {
-        let id = self.book_id(name).clone();
+        let id = self.book_id(name);
         match self.books.contains_key(&id) {
             true => self.books.get(&id).unwrap(),
             false => {
@@ -46,7 +46,7 @@ impl Library {
     pub fn book_by_id(&mut self, id: Id) -> &Book { self.books.get(&id).unwrap() }
 
     pub fn book_mut(&mut self, name: &Label) -> &mut Book {
-        let id = self.book_id(name).clone();
+        let id = self.book_id(name);
         match self.books.contains_key(&id) {
             true => self.books.get_mut(&id).unwrap(),
             false => {
@@ -59,17 +59,17 @@ impl Library {
     }
 
     pub fn replace(&mut self, name: Label, book: Book) -> Option<Book> {
-        let id = self.book_id(&name).clone();
+        let id = self.book_id(&name);
         self.books.insert(id, book)
     }
 
     pub fn remove(&mut self, name: &Label) -> Option<Book> {
-        let id = &self.book_id(&name).clone();
+        let id = &self.book_id(name);
         self.books.remove(id)
     }
 
     /// true on success
-    pub fn rename(&mut self, old: &Label, new: &String) -> bool {
+    pub fn rename(&mut self, old: &Label, new: &str) -> bool {
         // let newlabel = new.into();
         self.titles.rename_by_title(old, new.into())
     }
@@ -94,13 +94,13 @@ impl Library {
         self.books.insert(id, bk)
     }
 
-    pub fn add_batch_to_group(&mut self, name: &String, books: Vec<Id>) {
+    pub fn add_batch_to_group(&mut self, name: &str, books: Vec<Id>) {
         books.into_iter().for_each(|id| {
             self.groups.get_mut(name).unwrap().insert(id);
         });
     }
 
-    pub fn remove_batch_from_group(&mut self, name: &String, books: Vec<Id>) {
+    pub fn remove_batch_from_group(&mut self, name: &str, books: Vec<Id>) {
         books.into_iter().for_each(|id| {
             self.groups.get_mut(name).unwrap().remove(&id);
         });
@@ -110,7 +110,7 @@ impl Library {
         self.groups.get_mut(name).unwrap().insert(id);
     }
 
-    pub fn remove_from_group(&mut self, name: &String, id: Id) {
+    pub fn remove_from_group(&mut self, name: &str, id: Id) {
         self.groups.get_mut(name).unwrap().remove(&id);
     }
 
@@ -128,11 +128,9 @@ impl Library {
     pub fn get_groups(&self) -> Vec<&String> { self.groups.keys().collect() }
 
     pub fn get_group_names(&self, name: &str) -> Option<Vec<Label>> {
-        self.groups.get(name).map(|h| {
-            h.into_iter()
-                .filter_map(|&n| self.titles.title(n))
-                .collect()
-        })
+        self.groups
+            .get(name)
+            .map(|h| h.iter().filter_map(|&n| self.titles.title(n)).collect())
     }
 
     pub fn group_size(&mut self, name: &str) -> usize {
@@ -147,7 +145,7 @@ impl Library {
         self.groups.entry(name).or_default()
     }
 
-    pub fn remove_group(&mut self, name: &String) -> Option<HashSet<Id>> {
+    pub fn remove_group(&mut self, name: &str) -> Option<HashSet<Id>> {
         self.groups.remove(name)
     }
 }
@@ -174,5 +172,5 @@ impl<T: ToString> From<T> for Label {
 impl Deref for Label {
     type Target = String;
 
-    fn deref(self: &'_ Self) -> &'_ Self::Target { &self.0 }
+    fn deref(&'_ self) -> &'_ Self::Target { &self.0 }
 }

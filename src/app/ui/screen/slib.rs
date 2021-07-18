@@ -44,13 +44,12 @@ impl SLib {
         let pane_grid = PaneGrid::new(
             self.panes.as_mut().unwrap(),
             |_pane, b| -> Content<'_, Message> {
-                let content =
-                    Text::new(format!("{}", *b.0)).size(32).color(Color {
-                        r: 0.,
-                        g: 255.,
-                        b: 0.,
-                        a: 1.,
-                    });
+                let content = Text::new(b.0.to_string()).size(32).color(Color {
+                    r: 0.,
+                    g: 255.,
+                    b: 0.,
+                    a: 1.,
+                });
                 Container::new(content)
                     .width(Length::Fill)
                     .height(Length::Fill)

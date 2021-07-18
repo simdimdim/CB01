@@ -56,7 +56,7 @@ pub struct SAdd {
     pub addbtn:     button::State,
     pub follow:     bool,
     pub read:       bool,
-    pub book:       Option<Book>,
+    pub book:       Option<Box<Book>>,
 }
 impl Default for SAdd {
     fn default() -> Self {
@@ -73,11 +73,11 @@ impl Default for SAdd {
 }
 #[derive(Debug, Clone)]
 pub enum AAdd {
-    AddBook(Book),
+    AddBook(Box<Book>),
     Fetch(Url),
     UpdateErr(EAdd),
     UpdateTitle(Label),
-    UpdateBook(Label, Book),
+    UpdateBook(Label, Box<Book>),
     Refresh(Id),
     ToggleFollow(bool),
     ToggleRead(bool),
@@ -151,11 +151,13 @@ impl<'a> SAdd {
             self.book
                 .as_ref()
                 .map(|b| AAdd::AddBook(b.to_owned()))
-                .unwrap_or(AAdd::Fetch(
-                    "https://zinmanga.com/manga/first-miss-reborn/chapter-1/"
-                        .parse()
-                        .unwrap(),
-                ))
+                .unwrap_or_else(|| {
+                    AAdd::Fetch(
+                        "https://zinmanga.com/manga/first-miss-reborn/chapter-1/"
+                            .parse()
+                            .unwrap(),
+                    )
+                })
                 .into(),
         );
         let title = Column::new()
@@ -205,12 +207,12 @@ impl<'a> SAdd {
                 );
             }
             AAdd::AddBook(bk) => {
-                if self.title.0.len() == 0 {
+                if self.title.0.is_empty() {
                     return Command::perform(async {}, |_| {
                         AAdd::UpdateErr(EAdd::Title).into()
                     });
                 }
-                data.library.add_book(&self.title, bk);
+                data.library.add_book(&self.title, *bk);
                 self.book = None;
                 if self.read || self.follow {
                     let id = *data.library.titles.id(&self.title).unwrap();

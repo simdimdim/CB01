@@ -1,4 +1,4 @@
-use crate::{Finder, Page};
+use crate::{Finder, HTMLAsStr, Page};
 use reqwest::header::{HeaderMap, REFERER};
 use select::{
     document::Document,
@@ -6,8 +6,6 @@ use select::{
 };
 use std::collections::HashMap;
 use url::Host;
-
-type Input<'a> = &'a String;
 
 pub(crate) struct Include;
 impl Include {
@@ -49,8 +47,8 @@ impl Finder for ZimangaCom {
         hm
     }
 
-    fn images(&self, doc: Input<'_>) -> Vec<Page> {
-        let res = Document::from(doc.as_str())
+    fn images(&self, doc: HTMLAsStr<'_>) -> Vec<Page> {
+        let res = Document::from(doc)
             .select(Child(Child(Name("div"), Name("div")), Name("img")))
             .map(|a| {
                 a.parent()

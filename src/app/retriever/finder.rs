@@ -5,7 +5,7 @@ use select::{
     predicate::{Child, Descendant, Name, Or, Text},
 };
 
-type Input<'a> = &'a String;
+pub type HTMLAsStr<'a> = &'a str;
 pub trait Finder: std::fmt::Debug + Send + Sync {
     fn name(&self) -> &str;
     fn pred(&self) -> &str { "Next" }
@@ -16,7 +16,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .path_segments()
             .unwrap()
             .rev()
-            .filter(|&a| a != "")
+            .filter(|&a| a.is_empty())
             .collect::<Vec<_>>();
         let numbers = segments
             .iter()
@@ -32,7 +32,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         let index_candidate = if segments.len() < 3 {
             segments.iter().last()
         } else {
-            segments.iter().rev().skip(1).next()
+            segments.iter().rev().nth(1)
         };
         match (numbers.as_slice(), index_candidate) {
             ([x @ 0..=9000, y @ 0..=9000, ..], Some(&z)) => {
@@ -43,8 +43,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             _ => (0, 0, "".to_string()),
         }
     }
-    fn title(&self, doc: Input<'_>) -> Label {
-        let title = Document::from(doc.as_str())
+    fn title(&self, doc: HTMLAsStr<'_>) -> Label {
+        let title = Document::from(doc)
             .select(Name("title"))
             .into_selection()
             .first()
@@ -53,7 +53,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         if title.contains(self.split_by()) {
             title
                 .split(self.split_by())
-                .filter(|&a| a != "")
+                .filter(|&a| !a.is_empty())
                 .collect::<Vec<_>>()
                 .first()
                 .unwrap()
@@ -63,9 +63,9 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         }
         .into()
     }
-    fn index(&self, _doc: Input<'_>) -> Option<Page> { None }
-    fn links(&self, doc: Input<'_>) -> Vec<Page> {
-        Document::from(doc.as_str())
+    fn index(&self, _doc: HTMLAsStr<'_>) -> Option<Page> { None }
+    fn links(&self, doc: HTMLAsStr<'_>) -> Vec<Page> {
+        Document::from(doc)
             .select(Descendant(
                 Name("div"),
                 Or(Name("p"), Or(Name("table"), Name("ul"))),
@@ -81,8 +81,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-    fn next(&self, doc: Input<'_>) -> Option<Page> {
-        Document::from(doc.as_str())
+    fn next(&self, doc: HTMLAsStr<'_>) -> Option<Page> {
+        Document::from(doc)
             .select(Child(Name("a"), Text))
             .filter(|a| a.text().contains(self.pred()))
             .map(|a| {
@@ -92,8 +92,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-    fn text(&self, doc: Input<'_>) -> Vec<String> {
-        Document::from(doc.as_str())
+    fn text(&self, doc: HTMLAsStr<'_>) -> Vec<String> {
+        Document::from(doc)
             .select(Child(Name("div"), Name("p")))
             .map(|a| a.parent().unwrap().children().into_selection())
             .max_by(|a, b| a.len().cmp(&b.len()))
@@ -103,8 +103,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .map(|a| a.text())
             .collect()
     }
-    fn images(&self, doc: Input<'_>) -> Vec<Page> {
-        Document::from(doc.as_str())
+    fn images(&self, doc: HTMLAsStr<'_>) -> Vec<Page> {
+        Document::from(doc)
             .select(Child(Name("div"), Name("img")))
             .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
             .max_by(|a, b| a.len().cmp(&b.len()))

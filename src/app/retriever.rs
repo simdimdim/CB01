@@ -128,7 +128,7 @@ impl Retriever {
         let finder = find!(self, page);
         let headers = finder.headers();
         for mut p in page.images(finder).await.into_iter() {
-            self.add_related(&page, &p).await;
+            self.add_related(page, &p).await;
             p.prep(
                 self.client
                     .get(p.url.clone())
@@ -141,7 +141,7 @@ impl Retriever {
         images
     }
 
-    pub async fn new_book(&self, url: Url) -> (Label, Book) {
+    pub async fn new_book(&self, url: Url) -> (Label, Box<Book>) {
         let init = self.get(url.into()).await;
         let title = self.title(&init).await;
         let mut index = self.index(&init).await;
@@ -175,7 +175,7 @@ impl Retriever {
             }
             bk.cont_add(cnt, None);
         }
-        (title, bk)
+        (title, Box::new(bk))
     }
 
     pub async fn add_host(&mut self, host: Host, idx: usize) {

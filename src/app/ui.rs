@@ -62,6 +62,7 @@ impl Application for App {
         let mut app = App::new();
         let library = Library::default();
         // TODO: Load library from disc.
+        #[allow(clippy::or_fun_call)]
         let _fonts = UserDirs::new()
             .as_ref()
             .map(|x| x.font_dir())
@@ -99,11 +100,11 @@ impl Application for App {
                                     .map_err(|e| {
                                         warn!("{} : {}", e, s);
                                     })
-                                    .unwrap_or(
+                                    .unwrap_or_else(|_| {
                                         "htpps://codenova.ddns.net"
                                             .parse()
-                                            .unwrap(),
-                                    ),
+                                            .unwrap()
+                                    }),
                             )
                             .into()
                         });
@@ -289,11 +290,7 @@ impl Application for App {
                 self.screens.state = state;
             }
             Message::Update(a) => {
-                return self.screens.update(
-                    &mut self.data,
-                    &mut self.settings,
-                    a,
-                );
+                return self.screens.update(&mut self.data, &self.settings, a);
             }
             Message::FullscreenMode => {
                 self.settings.fullscreen = !self.settings.fullscreen

@@ -124,12 +124,11 @@ impl SRead {
 
                 match self.single {
                     false => {
-                        self.book.as_ref().map(|t| {
+                        if let Some(t) = self.book.as_ref() {
                             let book = data.library.book_mut(t);
-
                             book.backtrack_by(self.per);
                             current = book.last().len as f32;
-                        });
+                        }
                         self.scroff = (self.scroff -
                             (current / self.per as f32 - 1.).recip())
                         .max(0.);
@@ -144,11 +143,11 @@ impl SRead {
                 let mut current = 0.;
                 match self.single {
                     false => {
-                        self.book.as_ref().map(|t| {
+                        if let Some(t) = self.book.as_ref() {
                             let book = data.library.book_mut(t);
                             book.advance_by(self.per);
                             current = book.last().len as f32;
-                        });
+                        }
                         self.scroff = (self.scroff +
                             (current / self.per as f32 - 1.).recip())
                         .min(1.);
@@ -163,21 +162,21 @@ impl SRead {
             }
             ARead::More => {
                 self.per = self.per.saturating_add(1);
-                self.book.as_ref().map(|t| {
+                if let Some(t) = self.book.as_ref() {
                     data.library
                         .book_mut(t)
                         .chap_set_len(0, Some(self.per))
                         .current();
-                });
+                }
             }
             ARead::Less => {
                 self.per = 1.max(self.per.saturating_sub(1));
-                self.book.as_ref().map(|t| {
+                if let Some(t) = self.book.as_ref() {
                     data.library
                         .book_mut(t)
                         .chap_set_len(0, Some(self.per))
                         .current();
-                });
+                }
             }
         }
         Command::none()
