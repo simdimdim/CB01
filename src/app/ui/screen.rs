@@ -31,7 +31,7 @@ impl<'a> Screens {
             slib:  SLib::new(),
             sread: SRead::new(),
             sadd:  SAdd::new(),
-            state: AppState::Library,
+            state: AppState::Add,
         }
     }
 
@@ -40,14 +40,16 @@ impl<'a> Screens {
     ) -> Element<'_, Message> {
         match self.state {
             AppState::Settings => self.sset.view(settings),
-            AppState::Reader => self.sread.view(data, settings),
+            AppState::Reader => {
+                self.sread.view(data, settings, self.sset.darkmode)
+            }
             AppState::Library => self.slib.view(data),
             AppState::Add => self.sadd.view(settings, self.sset.darkmode),
         }
     }
 
     pub fn update(
-        &mut self, data: &mut AppData, _settings: &AppSettings, message: ViewA,
+        &mut self, data: &mut AppData, settings: &AppSettings, message: ViewA,
     ) -> Command<Message> {
         match message {
             ViewA::ALib(ALib::Select(id)) => {
@@ -57,7 +59,7 @@ impl<'a> Screens {
             }
             ViewA::Switch(s) => self.state = s,
             ViewA::ASet(a) => return self.sset.update(a),
-            ViewA::ARead(a) => return self.sread.update(data, a),
+            ViewA::ARead(a) => return self.sread.update(data, settings, a),
             ViewA::ALib(a) => return self.slib.update(a),
             ViewA::AAdd(a) => return self.sadd.update(data, a),
         };

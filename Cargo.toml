@@ -28,14 +28,14 @@ git = "https://github.com/hecrj/iced"
 git = "https://github.com/hecrj/iced"
 [dependencies.simple_logger]
 default-features = true # colorized
-version = "1.11.0" 
+version = "1.11.0"
 [dependencies.reqwest]
 features = ["stream", "cookies", "gzip"]
 version = "0.11.4"
 [dependencies.tokio]
 default-features = false
 features = ["fs", "time", "net", "macros", "rt-multi-thread"]
-version = "1.8.1"
+version = "1.8.2"
 [dependencies.url]
 features = ["serde"]
 version = "2.2.2"

@@ -1,4 +1,4 @@
-use crate::{data::AppData, AppSettings, Label, Message, ViewA};
+use crate::{data::AppData, AppSettings, Content, Label, Message, ViewA};
 use iced::{
     scrollable,
     Align,
@@ -6,16 +6,16 @@ use iced::{
     Container,
     Element,
     Length,
+    Rectangle,
     Row,
     Scrollable,
     Space,
 };
 use itertools::Either;
-use log::error;
+use log::{error, info, warn};
 
 #[derive(Debug)]
 pub struct SRead {
-    pub scroff: f32,
     pub scroll: scrollable::State,
     pub per:    u16,
     pub book:   Option<Label>,
@@ -26,7 +26,7 @@ pub struct SRead {
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ARead {
-    Scrolled(f32),
+    Scroll(f32, bool),
     Begin,
     Prev,
     Next,
@@ -38,7 +38,6 @@ pub enum ARead {
 impl SRead {
     pub fn new() -> Self {
         Self {
-            scroff: 0f32,
             scroll: scrollable::State::new(),
             per:    1,
             book:   None,
@@ -51,6 +50,7 @@ impl SRead {
 
     pub fn view<'a>(
         &'a mut self, data: &'a mut AppData, settings: &AppSettings,
+        darkmode: bool,
     ) -> Element<'a, Message> {
         let pics = data.library.book(self.book.as_ref().unwrap()).current();
         let res = if !self.single {
@@ -61,27 +61,31 @@ impl SRead {
                     Either::Right(pics)
                 }
                 .fold(Row::new(), |mut row, (_n, cnt)| {
-                    let el = cnt.view(Some(self.per));
+                    let el = cnt.view(Some(self.per), darkmode);
                     row = row.push(el);
                     row
                 }),
             )
         } else {
             let mut scroll = Scrollable::new(&mut self.scroll);
-            for (_, cnt) in pics {
-                let el = cnt.view(Some(self.per));
-                scroll = scroll.push(el);
+            for (_, content) in pics {
+                if let content @ Content::Image { .. } |
+                content @ Content::Text { .. } = content
+                {
+                    let el = content.view(Some(2), darkmode);
+                    let row = Row::new()
+                        .push(Space::new(Length::Fill, Length::Shrink))
+                        .push(el)
+                        .push(Space::new(Length::Fill, Length::Shrink))
+                        .height(Length::Shrink);
+                    scroll = scroll.push(row);
+                }
             }
-            let row = Row::new()
-                .push(Space::new(Length::Fill, Length::Fill))
-                .push(
-                    scroll
-                        .on_scroll(move |off| ARead::Scrolled(off).into())
-                        .width(Length::FillPortion(2))
-                        .max_width(settings.width),
-                )
-                .push(Space::new(Length::Fill, Length::Fill));
-            Either::Right(row)
+            Either::Right(
+                scroll
+                    .on_scroll(move |off| ARead::Scroll(off, true).into())
+                    .max_width(settings.width),
+            )
         };
 
         match res {
@@ -107,58 +111,98 @@ impl SRead {
     }
 
     pub fn update(
-        &mut self, data: &mut AppData, message: ARead,
+        &mut self, data: &mut AppData, settings: &AppSettings, message: ARead,
     ) -> Command<Message> {
         match message {
-            ARead::Scrolled(off) => {
-                self.scroff = off;
-            }
-            ARead::Begin => {
-                self.scroff = 0.;
-                self.scroll.snap_to(self.scroff);
-            }
-            ARead::Prev => {
-                // TODO: Add a bit more logic concerning single strip
-                // and multi-page modes
-                let mut current = 0.;
-
-                match self.single {
-                    false => {
-                        if let Some(t) = self.book.as_ref() {
-                            let book = data.library.book_mut(t);
-                            book.backtrack_by(self.per);
-                            current = book.last().len as f32;
-                        }
-                        self.scroff = (self.scroff -
-                            (current / self.per as f32 - 1.).recip())
-                        .max(0.);
-                        self.scroll.snap_to(self.scroff);
+            ARead::Scroll(off, should_call) => {
+                if let Some(t) = self.book.as_ref() {
+                    let book = data.library.book(t);
+                    if !should_call {
+                        self.scroll.scroll(
+                            off,
+                            Rectangle {
+                                x:      0.,
+                                y:      0.,
+                                width:  settings.width as f32,
+                                height: settings.height as f32,
+                            },
+                            Rectangle {
+                                x:      0.,
+                                y:      0.,
+                                width:  settings.width as f32,
+                                height: settings.height as f32,
+                            },
+                        );
+                        return Command::none();
                     }
-                    true => error!("Unimplemented"),
-                };
+                    if off >= 1. && !book.is_last() && should_call {
+                        return Command::batch(vec![
+                            Command::perform(async {}, |_| ARead::Next.into()),
+                            Command::perform(async {}, move |_| {
+                                ARead::Scroll(0., false).into()
+                            }),
+                        ]);
+                    }
+                    if off <= 0. && book.last().offset != 0 && should_call {
+                        return Command::batch(vec![
+                            Command::perform(async {}, |_| ARead::Prev.into()),
+                            Command::perform(async {}, move |_| {
+                                ARead::Scroll(1., false).into()
+                            }),
+                        ]);
+                    }
+                    warn!("Scrolled to: {:.4}", &off);
+                }
             }
             ARead::Next => {
                 // TODO: Add a bit more logic concerning single strip
                 // and multi-page modes
-                let mut current = 0.;
                 match self.single {
                     false => {
                         if let Some(t) = self.book.as_ref() {
+                            data.library.book_mut(t).advance_by(self.per);
+                            info!("{:?}", data.library.book(t).last());
+                        }
+                    }
+                    true => {
+                        if let Some(t) = self.book.as_ref() {
                             let book = data.library.book_mut(t);
                             book.advance_by(self.per);
-                            current = book.last().len as f32;
+                            info!("{:?}", data.library.book(t).last());
+                            return Command::perform(async {}, |_| {
+                                ARead::Scroll(0., false).into()
+                            });
                         }
-                        self.scroff = (self.scroff +
-                            (current / self.per as f32 - 1.).recip())
-                        .min(1.);
-                        self.scroll.snap_to(self.scroff);
                     }
-                    true => error!("Unimplemented"),
                 };
             }
+            ARead::Prev => {
+                // TODO: Add a bit more logic concerning single strip
+                // and multi-page modes
+                match self.single {
+                    false => {
+                        if let Some(t) = self.book.as_ref() {
+                            data.library.book_mut(t).backtrack_by(self.per);
+                            info!("{:?}", data.library.book(t).last());
+                        }
+                    }
+                    true => {
+                        if let Some(t) = self.book.as_ref() {
+                            let book = data.library.book_mut(t);
+                            book.backtrack_by(self.per);
+                            warn!("{:?}", data.library.book(t).last());
+                            return Command::perform(async {}, |_| {
+                                ARead::Scroll(0., false).into()
+                            });
+                        }
+                    }
+                };
+            }
+            ARead::Begin => {
+                self.scroll.snap_to(0.);
+            }
             ARead::End => {
-                self.scroff = 1.;
-                self.scroll.snap_to(self.scroff);
+                self.scroll.snap_to(1.);
             }
             ARead::More => {
                 self.per = self.per.saturating_add(1);
@@ -167,6 +211,7 @@ impl SRead {
                         .book_mut(t)
                         .chap_set_len(0, Some(self.per))
                         .current();
+                    info!("{:?}", data.library.book(t).last());
                 }
             }
             ARead::Less => {
@@ -176,6 +221,7 @@ impl SRead {
                         .book_mut(t)
                         .chap_set_len(0, Some(self.per))
                         .current();
+                    info!("{:?}", data.library.book(t).last());
                 }
             }
         }

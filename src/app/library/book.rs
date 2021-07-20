@@ -1,23 +1,27 @@
 use crate::{Chapter, Content, Id, Label, Page};
 use itertools::Either;
+use log::{info, warn};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::{btree_map::Range, BTreeMap},
+    ffi::OsStr,
     ops::RangeInclusive,
     path::PathBuf,
 };
 
 pub enum Position {
-    First,
-    BeforeCurrent,
-    AfterCurrent,
     Last,
+    AfterCurrent,
+    BeforeCurrent,
+    First,
+    Cover,
 }
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Book {
     pub src:      Option<Page>,
     pub content:  BTreeMap<u16, Content>,
     pub chapters: Vec<Chapter>,
+    pub cur_ch:   usize,
 }
 impl Book {
     pub fn new(page: Option<Page>) -> Self {
@@ -29,39 +33,69 @@ impl Book {
             src: page,
             content,
             chapters: vec![Chapter::default()],
+            cur_ch: 0,
         }
     }
 
     pub fn open<T: Into<Label>>(label: T, pb: PathBuf) -> (Label, Book) {
+        static FAIL_MSG: &str = "read_dir call failed";
+
         let title: Label = label.into();
         let pb = pb.join(&title.0);
+        let mut book = Book::default();
         let mut cover = pb.join(&title.0);
         cover.set_extension("jpg");
-
-        if cover.exists() {}
-        let mut book = Book::default();
-        book.cont_add(
-            pb.read_dir().expect("read_dir call failed").flatten().fold(
+        if cover.exists() {
+            info!("Hash cover: {:?}", cover);
+            book.cont_add(
+                vec![Content::Image {
+                    pb:  cover,
+                    src: None,
+                }],
+                Some(Position::Cover),
+            );
+        }
+        let dir = pb.read_dir().expect(FAIL_MSG);
+        let mut firstlevel = vec![];
+        let mut toplvl = dir.flatten().fold(vec![], |mut acc, d| {
+            if let Some(Some("jpg" | "jpeg" | "png" | "bmp" | "gif" | "tiff")) =
+                d.path().extension().map(OsStr::to_str)
+            {
+                acc.push(Content::Image {
+                    pb:  d.path(),
+                    src: None,
+                });
+            } else if d.path().is_dir() {
+                firstlevel.push(d.path());
+            }
+            acc
+        });
+        toplvl.sort();
+        info!("{:?}", toplvl);
+        book.chap_add(None, toplvl.len());
+        book.cont_add(toplvl, None);
+        for p in firstlevel {
+            let mut dir = p.read_dir().expect(FAIL_MSG).flatten().fold(
                 vec![],
-                |mut acc, d| {
-                    if let Some(f) = d.path().extension() {
-                        if f == "jpg" ||
-                            f == "gif" ||
-                            f == "png" ||
-                            f == "jpeg" ||
-                            f == "tiff"
-                        {
-                            acc.push(Content::Image {
-                                pb:  d.path(),
-                                src: None,
-                            });
-                        }
+                |mut cvec, item| {
+                    if let Some(Some(
+                        "jpg" | "jpeg" | "png" | "bmp" | "gif" | "tiff",
+                    )) = item.path().extension().map(OsStr::to_str)
+                    {
+                        cvec.push(Content::Image {
+                            pb:  item.path(),
+                            src: None,
+                        });
                     }
-                    acc
+                    cvec
                 },
-            ),
-            None,
-        );
+            );
+            dir.sort();
+            info!("{:?}", dir);
+            book.chap_add(None, dir.len());
+            book.cont_add(dir, None);
+        }
+
         (title, book)
     }
 
@@ -124,7 +158,7 @@ impl Book {
         })
     }
 
-    pub fn chap_len(&self) -> usize { self.chapters.len() }
+    pub fn chaps_len(&self) -> usize { self.chapters.len() }
 
     pub fn content(&self, n: &Id) -> Option<&Content> { self.content.get(n) }
 
@@ -157,49 +191,72 @@ impl Book {
     }
 
     pub fn cont_add(&mut self, cont: Vec<Content>, pos: Option<Position>) {
+        if cont.is_empty() {
+            return;
+        }
+        let len = cont.len() as Id;
+        let mut cont = cont.into_iter();
         let default = (&1u16, &Content::Empty);
         let split = match pos.unwrap_or(Position::Last) {
-            Position::First => 1,
-            Position::BeforeCurrent => 1.max(self.chapters[0].start() as usize),
-            Position::AfterCurrent => self.chapters[0].end() as usize + 1,
             Position::Last => self.cont_len() as usize,
+            Position::AfterCurrent => self.chapters[0].end() as usize + 1,
+            Position::BeforeCurrent => 1.max(self.chapters[0].start() as usize),
+            Position::First => 1,
+            Position::Cover => {
+                self.content
+                    .entry(0)
+                    .and_modify(|e| *e = cont.next().unwrap());
+                if len == 1 {
+                    return;
+                };
+                1
+            }
         } as Id;
-        let len = cont.len() as Id;
-        let sp = self.content.len() > 1;
 
         // lengthen chapters
         // filtered by insert pos
         // or better conditional lengthen depending on insert pos
 
-        if sp {
-            let first = *self
-                .content
-                .range(split..)
-                .next()
-                .unwrap_or_else(|| self.content.iter().rev().next().unwrap())
-                .0;
-
-            let mut leftovers = self.content.split_off(&first);
-            let l = *self
-                .content
-                .par_iter()
-                .max_by_key(|(&k, _)| k)
-                .unwrap_or(default)
-                .0 +
-                1;
-            cont.into_iter().enumerate().for_each(|(n, content)| {
-                self.content.insert(l + n as Id, content);
-            });
-            self.content.append(
-                &mut leftovers
-                    .iter_mut()
-                    .map(|(k, v)| ((k + len), v.clone()))
-                    .collect::<BTreeMap<Id, Content>>(),
-            );
-        } else {
-            cont.into_iter().enumerate().for_each(|(n, content)| {
-                self.content.insert(n as Id + 1, content);
-            });
+        match self.content.len() {
+            2..=usize::MAX => {
+                let first = *self
+                    .content
+                    .range(split..)
+                    .next()
+                    .unwrap_or_else(|| self.content.iter().rev().next().unwrap())
+                    .0;
+                let mut leftovers = self.content.split_off(&first);
+                let l = *self
+                    .content
+                    .par_iter()
+                    .max_by_key(|(&k, _)| k)
+                    .unwrap_or(default)
+                    .0 +
+                    1;
+                cont.enumerate().for_each(|(n, content)| {
+                    self.content.insert(l + n as Id, content);
+                });
+                self.content.append(
+                    &mut leftovers
+                        .iter_mut()
+                        .map(|(k, v)| ((k + len), v.clone()))
+                        .collect::<BTreeMap<Id, Content>>(),
+                );
+            }
+            1 => {
+                cont.enumerate().for_each(|(n, content)| {
+                    self.content.insert(n as Id + 1, content);
+                });
+            }
+            0 => {
+                let cnt = cont.next().unwrap();
+                self.content.insert(0, cnt.clone());
+                self.content.insert(1, cnt);
+                cont.enumerate().for_each(|(n, content)| {
+                    self.content.insert(n as Id + 2, content);
+                });
+            }
+            _ => unreachable!(),
         }
     }
 
@@ -207,7 +264,7 @@ impl Book {
 
     pub fn cont_len(&self) -> usize { self.content.len() }
 
-    fn valid(&self, n: usize) -> bool { self.chap_len() > n && n > 0 }
+    fn valid(&self, n: usize) -> bool { self.chaps_len() > n && n > 0 }
 
     pub fn save(&self, _pb: PathBuf) { self.content.iter(); }
 
@@ -215,23 +272,75 @@ impl Book {
         self.cont_batch(self.chapters[0].range())
     }
 
-    pub fn chap_set_len(&mut self, ch: usize, l: Option<Id>) -> &mut Self {
+    pub fn chap_set_len(&mut self, ch: usize, len: Option<Id>) -> &mut Self {
         let idx = if self.valid(ch) { ch } else { 0 };
-        if let Some(n) = l {
+        if let Some(n) = len {
             self.chapters[idx].len = n.saturating_sub(1);
         }
         self
     }
 
     pub fn advance_by(&mut self, n: Id) -> Range<'_, Id, Content> {
-        self.chapters[0].offset = (self.cont_len() as Id)
-            .min(self.chapters[0].offset.saturating_add(n));
+        let adv = self
+            .last()
+            .offset
+            .saturating_add(n)
+            .min(self.cont_len() as Id);
+        warn!("{}", adv);
+        if self.cur_ch == 0 && self.chaps_len() > 0 {
+            self.cur_ch = 1;
+        }
+        if self.chap_cur().contains(&adv) {
+            self.chapters[0].offset = adv;
+            warn!("{:?}", self.last());
+        } else if self.chap_cur().end() < adv &&
+            self.valid(self.cur_ch.saturating_add(1))
+        {
+            self.chap_next();
+            warn!("{:?}", self.last());
+            self.chapters[0].offset = self.chap_cur().offset;
+            warn!("{:?}", self.last());
+        }
         self.cont_batch(self.last().range())
     }
 
     pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
-        self.chapters[0].offset = self.chapters[0].offset.saturating_sub(n);
+        let back = 0.max(self.last().offset.saturating_sub(n));
+        warn!("{}", back);
+        warn!("{}", self.chap_cur().offset);
+        warn!("{}", self.chap_cur().contains(&back));
+        if back < self.chap_cur().offset && 1 < self.cur_ch.saturating_sub(1) {
+            self.chap_prev();
+            self.chapters[0].offset = self.chap_cur().offset;
+        } else if self.chap_cur().contains(&back) {
+            self.chapters[0].offset = back;
+        } else if true {
+        }
         self.cont_batch(self.last().range())
+    }
+
+    pub fn chap_cur(&self) -> &Chapter { &self.chapters[self.cur_ch] }
+
+    pub fn chap_next(&mut self) {
+        let next = self.cur_ch.saturating_add(1);
+        if self.valid(next) {
+            self.cur_ch = next;
+        }
+    }
+
+    pub fn chap_prev(&mut self) {
+        let prev = self.cur_ch.saturating_sub(1);
+        if self.valid(prev) {
+            self.cur_ch = prev;
+        }
+    }
+
+    pub fn is_last(&self) -> bool {
+        self.content
+            .range(self.chapters[self.cur_ch].range().last().unwrap()..)
+            .into_iter()
+            .count() ==
+            1
     }
 }
 

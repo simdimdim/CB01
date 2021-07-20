@@ -1,5 +1,5 @@
-use crate::Message;
-use iced::{image::Handle, Element, Image};
+use crate::{Message, Theme};
+use iced::{image::Handle, Color, Element, Image};
 use reqwest::Url;
 use std::path::PathBuf;
 use tokio::{
@@ -7,7 +7,9 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-#[derive(Debug, Clone)]
+static MISSING: &str = "Missing content file.";
+
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub enum Content {
     Image {
         pb:  PathBuf,
@@ -44,7 +46,7 @@ impl Content {
                     .create(true)
                     .open(pb)
                     .await
-                    .expect("Missing content file.")
+                    .expect(MISSING)
                     .write_all(data)
                     .await
                     .unwrap();
@@ -56,7 +58,7 @@ impl Content {
                     .create(true)
                     .open(pb)
                     .await
-                    .expect("Missing content file.")
+                    .expect(MISSING)
                     .write_all(text.as_bytes())
                     .await
                     .unwrap();
@@ -75,7 +77,7 @@ impl Content {
                 .read(true)
                 .open(&pb)
                 .await
-                .expect("Missing content file.")
+                .expect(MISSING)
                 .read_to_end(&mut buf)
                 .await
                 .unwrap();
@@ -88,12 +90,12 @@ impl Content {
     }
 
     // tempt, to be adopted by the translator struct/macro
-    pub fn view(&self, _columns: Option<u16>) -> Element<'_, Message> {
+    pub fn view(&self, cols: Option<u16>, dark: bool) -> Element<'_, Message> {
         use iced::{HorizontalAlignment, Length, Text, VerticalAlignment};
         //Portion(columns.unwrap_or(1))
         match self {
             Self::Image { pb, .. } => Image::new(Handle::from_path(pb))
-                .width(Length::Fill)
+                .width(Length::FillPortion(cols.unwrap_or(1)))
                 .height(Length::Fill)
                 .into(),
             Self::Text { text, .. } => Text::new(text.clone())
@@ -108,6 +110,15 @@ impl Content {
                 .into(),
             Self::Empty => Text::new("There's no content here.")
                 .width(Length::Fill)
+                .color({
+                    let c = if dark { 255. } else { 0. };
+                    Color {
+                        r: c,
+                        g: c,
+                        b: c,
+                        a: 1.,
+                    }
+                })
                 .vertical_alignment(VerticalAlignment::Top)
                 .horizontal_alignment(HorizontalAlignment::Center)
                 .into(),
