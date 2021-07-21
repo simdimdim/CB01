@@ -244,6 +244,7 @@ impl Book {
                 );
             }
             1 => {
+                warn!("Only a cover exists.");
                 cont.enumerate().for_each(|(n, content)| {
                     self.content.insert(n as Id + 1, content);
                 });
@@ -305,15 +306,17 @@ impl Book {
     }
 
     pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
-        let back = 0.max(self.last().offset.saturating_sub(n));
+        let back = 1.max(self.last().offset.saturating_sub(n));
         warn!("{}", back);
         warn!("{}", self.chap_cur().offset);
         warn!("{}", self.chap_cur().contains(&back));
-        if back < self.chap_cur().offset && 1 < self.cur_ch.saturating_sub(1) {
+        if self.chap_cur().contains(&back) {
+            self.chapters[0].offset = back;
+        } else if back < self.chap_cur().offset &&
+            1 < self.cur_ch.saturating_sub(1)
+        {
             self.chap_prev();
             self.chapters[0].offset = self.chap_cur().offset;
-        } else if self.chap_cur().contains(&back) {
-            self.chapters[0].offset = back;
         } else if true {
         }
         self.cont_batch(self.last().range())

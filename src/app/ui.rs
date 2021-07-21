@@ -84,13 +84,7 @@ impl Application for App {
             Message::EventOccurred(event) => match event {
                 Keyboard(KeyPressed {
                     key_code: KeyCode::V,
-                    modifiers:
-                        Modifiers {
-                            control: true,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    modifiers: Modifiers::CTRL,
                 }) if self.screens.sset.anywhere => {
                     self.screens.state = AppState::Add;
                     if let Some(s) = clipboard.read() {
@@ -112,37 +106,19 @@ impl Application for App {
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F,
-                    modifiers:
-                        Modifiers {
-                            control: true,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    modifiers: Modifiers::CTRL,
                 }) => {
                     self.screens.sread.rev = !self.screens.sread.rev;
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::S,
-                    modifiers:
-                        Modifiers {
-                            control: true,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    modifiers: Modifiers::CTRL,
                 }) => {
                     self.screens.sread.single = !self.screens.sread.single;
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::D,
-                    modifiers:
-                        Modifiers {
-                            control: true,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    modifiers: Modifiers::CTRL,
                 }) => {
                     self.update(
                         ASet::ToggleDark(!self.screens.sset.darkmode).into(),
@@ -151,13 +127,7 @@ impl Application for App {
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Home,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(ARead::Begin.into(), clipboard);
                 }
@@ -168,14 +138,7 @@ impl Application for App {
                         KeyCode::PageUp |
                         KeyCode::A |
                         KeyCode::W,
-
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            shift: false,
-                            alt: false,
-                            logo: false,
-                        },
+                    ..
                 }) => {
                     self.update(ARead::Prev.into(), clipboard);
                 }
@@ -187,97 +150,49 @@ impl Application for App {
                         KeyCode::D |
                         KeyCode::S |
                         KeyCode::Space,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            shift: false,
-                            alt: false,
-                            logo: false,
-                        },
+                    ..
                 }) => {
                     self.update(ARead::Next.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::End,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(ARead::End.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadSubtract,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(ARead::Less.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadAdd,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(ARead::More.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F1 | KeyCode::Numpad0,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(AppState::Settings.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F2 | KeyCode::Numpad1,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(AppState::Library.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F3 | KeyCode::Numpad2,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(AppState::Reader.into(), clipboard);
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F4 | KeyCode::Numpad3,
-                    modifiers:
-                        Modifiers {
-                            control: false,
-                            logo: false,
-                            shift: false,
-                            alt: false,
-                        },
+                    ..
                 }) => {
                     self.update(AppState::Add.into(), clipboard);
                 }
@@ -337,25 +252,13 @@ fn handle_settings(settings: &mut AppSettings, message: &Message) {
             Window(CloseRequested) |
             Keyboard(KeyPressed {
                 key_code: KeyCode::Escape | KeyCode::Q,
-                modifiers:
-                    Modifiers {
-                        control: false,
-                        logo: false,
-                        shift: false,
-                        alt: false,
-                    },
+                ..
             }) => {
                 settings.should_exit = true;
             }
             Keyboard(KeyPressed {
                 key_code: KeyCode::F | KeyCode::F12,
-                modifiers:
-                    Modifiers {
-                        control: false,
-                        logo: false,
-                        shift: false,
-                        alt: false,
-                    },
+                ..
             }) => {
                 settings.fullscreen = !settings.fullscreen;
             }

@@ -18,7 +18,7 @@ use log::{error, info, warn};
 pub struct SRead {
     pub scroll: scrollable::State,
     pub per:    u16,
-    pub book:   Option<Label>,
+    pub blabel: Option<Label>,
     pub id:     Option<u16>,
     pub single: bool,
     pub rev:    bool,
@@ -39,10 +39,10 @@ impl SRead {
     pub fn new() -> Self {
         Self {
             scroll: scrollable::State::new(),
-            per:    1,
-            book:   None,
+            per:    2,
+            blabel: None,
             id:     None,
-            single: false,
+            single: true,
             rev:    false,
             flip:   false,
         }
@@ -52,7 +52,7 @@ impl SRead {
         &'a mut self, data: &'a mut AppData, settings: &AppSettings,
         darkmode: bool,
     ) -> Element<'a, Message> {
-        let pics = data.library.book(self.book.as_ref().unwrap()).current();
+        let pics = data.library.book(self.blabel.as_ref().unwrap()).current();
         let res = if !self.single {
             Either::Left(
                 if self.rev {
@@ -61,7 +61,7 @@ impl SRead {
                     Either::Right(pics)
                 }
                 .fold(Row::new(), |mut row, (_n, cnt)| {
-                    let el = cnt.view(Some(self.per), darkmode);
+                    let el = cnt.view((self.per > 1).then(|| self.per), darkmode);
                     row = row.push(el);
                     row
                 }),
@@ -115,7 +115,7 @@ impl SRead {
     ) -> Command<Message> {
         match message {
             ARead::Scroll(off, should_call) => {
-                if let Some(t) = self.book.as_ref() {
+                if let Some(t) = self.blabel.as_ref() {
                     let book = data.library.book(t);
                     if !should_call {
                         self.scroll.scroll(
@@ -159,13 +159,13 @@ impl SRead {
                 // and multi-page modes
                 match self.single {
                     false => {
-                        if let Some(t) = self.book.as_ref() {
+                        if let Some(t) = self.blabel.as_ref() {
                             data.library.book_mut(t).advance_by(self.per);
                             info!("{:?}", data.library.book(t).last());
                         }
                     }
                     true => {
-                        if let Some(t) = self.book.as_ref() {
+                        if let Some(t) = self.blabel.as_ref() {
                             let book = data.library.book_mut(t);
                             book.advance_by(self.per);
                             info!("{:?}", data.library.book(t).last());
@@ -181,16 +181,17 @@ impl SRead {
                 // and multi-page modes
                 match self.single {
                     false => {
-                        if let Some(t) = self.book.as_ref() {
+                        if let Some(t) = self.blabel.as_ref() {
                             data.library.book_mut(t).backtrack_by(self.per);
                             info!("{:?}", data.library.book(t).last());
                         }
                     }
                     true => {
-                        if let Some(t) = self.book.as_ref() {
+                        if let Some(t) = self.blabel.as_ref() {
                             let book = data.library.book_mut(t);
                             book.backtrack_by(self.per);
                             warn!("{:?}", data.library.book(t).last());
+                            warn!("{:?}", data.library.book(t).chap_cur());
                             return Command::perform(async {}, |_| {
                                 ARead::Scroll(0., false).into()
                             });
@@ -206,7 +207,7 @@ impl SRead {
             }
             ARead::More => {
                 self.per = self.per.saturating_add(1);
-                if let Some(t) = self.book.as_ref() {
+                if let Some(t) = self.blabel.as_ref() {
                     data.library
                         .book_mut(t)
                         .chap_set_len(0, Some(self.per))
@@ -216,7 +217,7 @@ impl SRead {
             }
             ARead::Less => {
                 self.per = 1.max(self.per.saturating_sub(1));
-                if let Some(t) = self.book.as_ref() {
+                if let Some(t) = self.blabel.as_ref() {
                     data.library
                         .book_mut(t)
                         .chap_set_len(0, Some(self.per))

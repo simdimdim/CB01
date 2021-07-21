@@ -53,7 +53,7 @@ impl<'a> Screens {
     ) -> Command<Message> {
         match message {
             ViewA::ALib(ALib::Select(id)) => {
-                self.sread.book = data.library.titles.title(id);
+                self.sread.blabel = data.library.titles.title(id);
                 self.state = AppState::Reader;
                 return self.slib.update(ALib::Select(id));
             }
