@@ -21,12 +21,14 @@ pub struct SRead {
     pub blabel: Option<Label>,
     pub id:     Option<u16>,
     pub single: bool,
+    pub smooth: bool,
     pub rev:    bool,
     pub flip:   bool,
+    pub switch: bool,
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ARead {
-    Scroll(f32, bool),
+    Scroll(f32),
     Begin,
     Prev,
     Next,
@@ -43,8 +45,10 @@ impl SRead {
             blabel: None,
             id:     None,
             single: true,
+            smooth: true,
             rev:    false,
             flip:   false,
+            switch: false,
         }
     }
 
@@ -83,7 +87,16 @@ impl SRead {
             }
             Either::Right(
                 scroll
-                    .on_scroll(move |off| ARead::Scroll(off, true).into())
+                    .on_scroll(move |off| {
+                        warn!("Scrolled: {}", off);
+                        if (off - 1.0f32).abs() < f32::EPSILON {
+                            ARead::Next.into()
+                        } else if off == 0.0f32 {
+                            ARead::Prev.into()
+                        } else {
+                            ARead::Scroll(off).into()
+                        }
+                    })
                     .max_width(settings.width),
             )
         };
@@ -114,90 +127,53 @@ impl SRead {
         &mut self, data: &mut AppData, settings: &AppSettings, message: ARead,
     ) -> Command<Message> {
         match message {
-            ARead::Scroll(off, should_call) => {
-                if let Some(t) = self.blabel.as_ref() {
-                    let book = data.library.book(t);
-                    if !should_call {
-                        self.scroll.scroll(
-                            off,
-                            Rectangle {
-                                x:      0.,
-                                y:      0.,
-                                width:  settings.width as f32,
-                                height: settings.height as f32,
-                            },
-                            Rectangle {
-                                x:      0.,
-                                y:      0.,
-                                width:  settings.width as f32,
-                                height: settings.height as f32,
-                            },
-                        );
-                        return Command::none();
-                    }
-                    if off >= 1. && !book.is_last() && should_call {
-                        return Command::batch(vec![
-                            Command::perform(async {}, |_| ARead::Next.into()),
-                            Command::perform(async {}, move |_| {
-                                ARead::Scroll(0., false).into()
-                            }),
-                        ]);
-                    }
-                    if off <= 0. && book.last().offset != 0 && should_call {
-                        return Command::batch(vec![
-                            Command::perform(async {}, |_| ARead::Prev.into()),
-                            Command::perform(async {}, move |_| {
-                                ARead::Scroll(1., false).into()
-                            }),
-                        ]);
-                    }
-                    warn!("Scrolled to: {:.4}", &off);
-                }
-            }
+            ARead::Scroll(_) => {}
             ARead::Next => {
                 // TODO: Add a bit more logic concerning single strip
                 // and multi-page modes
-                match self.single {
-                    false => {
-                        if let Some(t) = self.blabel.as_ref() {
-                            data.library.book_mut(t).advance_by(self.per);
-                            info!("{:?}", data.library.book(t).last());
-                        }
-                    }
-                    true => {
-                        if let Some(t) = self.blabel.as_ref() {
-                            let book = data.library.book_mut(t);
-                            book.advance_by(self.per);
-                            info!("{:?}", data.library.book(t).last());
-                            return Command::perform(async {}, |_| {
-                                ARead::Scroll(0., false).into()
-                            });
-                        }
-                    }
-                };
+                self.single.then(|| {
+                    self.scroll.scroll(
+                        settings.height as f32,
+                        Rectangle {
+                            x:      0.,
+                            y:      0.,
+                            width:  settings.width as f32,
+                            height: settings.height as f32,
+                        },
+                        Rectangle {
+                            x:      0.,
+                            y:      0.,
+                            width:  settings.width as f32,
+                            height: settings.height as f32,
+                        },
+                    )
+                });
+                if let Some(book) =
+                    self.blabel.as_ref().map(|t| data.library.book_mut(t))
+                {
+                    book.advance_by(self.per);
+                    warn!("{:?}", book.last());
+                    self.update(data, settings, ARead::Begin);
+                }
             }
             ARead::Prev => {
                 // TODO: Add a bit more logic concerning single strip
                 // and multi-page modes
-                match self.single {
-                    false => {
-                        if let Some(t) = self.blabel.as_ref() {
-                            data.library.book_mut(t).backtrack_by(self.per);
-                            info!("{:?}", data.library.book(t).last());
-                        }
-                    }
-                    true => {
-                        if let Some(t) = self.blabel.as_ref() {
-                            let book = data.library.book_mut(t);
-                            book.backtrack_by(self.per);
-                            warn!("{:?}", data.library.book(t).last());
-                            warn!("{:?}", data.library.book(t).chap_cur());
-                            return Command::perform(async {}, |_| {
-                                ARead::Scroll(0., false).into()
-                            });
-                        }
-                    }
-                };
+                if let Some(book) =
+                    self.blabel.as_ref().map(|t| data.library.book_mut(t))
+                {
+                    book.backtrack_by(self.per);
+                    warn!("{:?}", book.last());
+                    self.update(
+                        data,
+                        settings,
+                        if self.smooth {
+                            ARead::Begin
+                        } else {
+                            ARead::End
+                        },
+                    );
+                }
             }
             ARead::Begin => {
                 self.scroll.snap_to(0.);
@@ -207,22 +183,20 @@ impl SRead {
             }
             ARead::More => {
                 self.per = self.per.saturating_add(1);
-                if let Some(t) = self.blabel.as_ref() {
-                    data.library
-                        .book_mut(t)
-                        .chap_set_len(0, Some(self.per))
-                        .current();
-                    info!("{:?}", data.library.book(t).last());
+                if let Some(book) =
+                    self.blabel.as_ref().map(|t| data.library.book_mut(t))
+                {
+                    book.chap_set_len(0, Some(self.per)).current();
+                    info!("{:?}", book.last());
                 }
             }
             ARead::Less => {
                 self.per = 1.max(self.per.saturating_sub(1));
-                if let Some(t) = self.blabel.as_ref() {
-                    data.library
-                        .book_mut(t)
-                        .chap_set_len(0, Some(self.per))
-                        .current();
-                    info!("{:?}", data.library.book(t).last());
+                if let Some(book) =
+                    self.blabel.as_ref().map(|t| data.library.book_mut(t))
+                {
+                    book.chap_set_len(0, Some(self.per)).current();
+                    info!("{:?}", book.last());
                 }
             }
         }
@@ -232,3 +206,18 @@ impl SRead {
 impl From<ARead> for Message {
     fn from(a: ARead) -> Self { Message::Update(ViewA::ARead(a)) }
 }
+// fn f(off: f32, book: Book) {
+//     if off >= 1. && !book.is_last() {
+//         return Command::batch(vec![
+//             Command::perform(async {}, |_| ARead::Next.into()),
+//             Command::perform(async {}, |_| ARead::Scroll(0.).into()),
+//         ]);
+//     }
+//     if off <= 0. && book.last().offset != 0 {
+//         let smooth = (self.smooth as u8) as f32;
+//         return Command::batch(vec![
+//             Command::perform(async {}, |_| ARead::Prev.into()),
+//             Command::perform(async {}, move |_| ARead::Scroll(smooth).into()),
+//         ]);
+//     }
+// }

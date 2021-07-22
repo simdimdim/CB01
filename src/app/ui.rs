@@ -95,7 +95,7 @@ impl Application for App {
                                         warn!("{} : {}", e, s);
                                     })
                                     .unwrap_or_else(|_| {
-                                        "htpps://codenova.ddns.net"
+                                        "https://codenova.ddns.net"
                                             .parse()
                                             .unwrap()
                                     }),

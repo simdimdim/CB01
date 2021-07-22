@@ -72,7 +72,6 @@ impl Book {
         });
         toplvl.sort();
         info!("{:?}", toplvl);
-        book.chap_add(None, toplvl.len());
         book.cont_add(toplvl, None);
         for p in firstlevel {
             let mut dir = p.read_dir().expect(FAIL_MSG).flatten().fold(
@@ -99,7 +98,7 @@ impl Book {
         (title, book)
     }
 
-    pub fn get_cover(&self) -> &Content { self.content.get(&0).unwrap() }
+    pub fn cover(&self) -> &Content { &self.content[&0] }
 
     pub fn last(&self) -> &Chapter { &self.chapters[0] }
 
@@ -291,6 +290,7 @@ impl Book {
         if self.cur_ch == 0 && self.chaps_len() > 0 {
             self.cur_ch = 1;
         }
+        warn!("contains2 {}", self.chap_cur().contains(&adv));
         if self.chap_cur().contains(&adv) {
             self.chapters[0].offset = adv;
             warn!("{:?}", self.last());
@@ -306,18 +306,22 @@ impl Book {
     }
 
     pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
+        warn!("{:?}", self.chapters);
         let back = 1.max(self.last().offset.saturating_sub(n));
-        warn!("{}", back);
-        warn!("{}", self.chap_cur().offset);
-        warn!("{}", self.chap_cur().contains(&back));
+        warn!("back {}", back);
+        warn!("chapter {:?}", self.chap_cur());
+        warn!("contains2 {}", self.chap_cur().contains(&back));
         if self.chap_cur().contains(&back) {
+            warn!("contains2 {}", self.chap_cur().contains(&back));
             self.chapters[0].offset = back;
         } else if back < self.chap_cur().offset &&
             1 < self.cur_ch.saturating_sub(1)
         {
             self.chap_prev();
             self.chapters[0].offset = self.chap_cur().offset;
+            warn!("Next {:?}", self.last());
         } else if true {
+            warn!("true? {}", back);
         }
         self.cont_batch(self.last().range())
     }

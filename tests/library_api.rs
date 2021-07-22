@@ -14,7 +14,17 @@ fn book() {
 }
 fn remove_cont() {}
 #[test]
-fn chapter() { shorten_chapter() }
+fn chapter() {
+    let chap = Chapter {
+        offset: 1,
+        len:    1,
+        src:    None,
+        name:   None,
+        full:   false,
+    };
+    assert!(chap.contains(&1));
+    shorten_chapter()
+}
 
 fn shorten_chapter() {
     let mut c0 = Chapter {
@@ -22,42 +32,49 @@ fn shorten_chapter() {
         len:    10,
         name:   None,
         src:    None,
+        full:   false,
     };
     let mut c1 = Chapter {
         offset: 40,
         len:    10,
         name:   None,
         src:    None,
+        full:   false,
     };
     let mut c2 = Chapter {
         offset: 55,
         len:    3,
         name:   None,
         src:    None,
+        full:   false,
     };
     let mut c3 = Chapter {
         offset: 45,
         len:    20,
         name:   None,
         src:    None,
+        full:   false,
     };
     let mut c4 = Chapter {
         offset: 60,
         len:    10,
         name:   None,
         src:    None,
+        full:   false,
     };
     let mut c5 = Chapter {
         offset: 70,
         len:    5,
         name:   None,
         src:    None,
+        full:   false,
     };
     let other = Chapter {
         offset: 50,
         len:    10,
         name:   None,
         src:    None,
+        full:   false,
     };
     assert_eq!(c0.shorten(other.range()), 10);
     assert_eq!(c1.shorten(other.range()), 9);

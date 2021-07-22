@@ -24,5 +24,5 @@ async fn dl_test() {
     // tokio::fs::write("library/pivture2.jpg", &*p.image(&r.client).await)
     //     .await
     //     .unwrap();
-    c.save(&p.image(&r.client).await).await
+    // c.save(&p.image(&r.client).await).await
 }
