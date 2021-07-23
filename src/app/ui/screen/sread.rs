@@ -12,11 +12,12 @@ use iced::{
     Space,
 };
 use itertools::Either;
-use log::{error, info, warn};
+use log::{error, info, trace, warn};
 
 #[derive(Debug)]
 pub struct SRead {
     pub scroll: scrollable::State,
+    pub scroff: f32,
     pub per:    u16,
     pub blabel: Option<Label>,
     pub id:     Option<u16>,
@@ -42,6 +43,7 @@ impl SRead {
         Self {
             scroll: scrollable::State::new(),
             per:    2,
+            scroff: 0.,
             blabel: None,
             id:     None,
             single: true,
@@ -88,8 +90,7 @@ impl SRead {
             Either::Right(
                 scroll
                     .on_scroll(move |off| {
-                        warn!("Scrolled: {}", off);
-                        if (off - 1.0f32).abs() < f32::EPSILON {
+                        if off >= 1. {
                             ARead::Next.into()
                         } else if off == 0.0f32 {
                             ARead::Prev.into()
@@ -127,33 +128,28 @@ impl SRead {
         &mut self, data: &mut AppData, settings: &AppSettings, message: ARead,
     ) -> Command<Message> {
         match message {
-            ARead::Scroll(_) => {}
+            ARead::Scroll(off) => {
+                trace!("Scrolled: {}", off);
+                self.scroff = off;
+            }
             ARead::Next => {
                 // TODO: Add a bit more logic concerning single strip
                 // and multi-page modes
-                self.single.then(|| {
-                    self.scroll.scroll(
-                        settings.height as f32,
-                        Rectangle {
-                            x:      0.,
-                            y:      0.,
-                            width:  settings.width as f32,
-                            height: settings.height as f32,
-                        },
-                        Rectangle {
-                            x:      0.,
-                            y:      0.,
-                            width:  settings.width as f32,
-                            height: settings.height as f32,
-                        },
-                    )
-                });
+                warn!("N:");
                 if let Some(book) =
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
-                    book.advance_by(self.per);
-                    warn!("{:?}", book.last());
-                    self.update(data, settings, ARead::Begin);
+                    let end = self.scroff >= 1.;
+                    warn!("Nexted");
+                    if end || !self.single {
+                        book.advance_by(self.per);
+                        self.update(data, settings, ARead::Begin);
+                    } else {
+                        let to = (self.scroff + (self.per as f32 * 3.).recip())
+                            .max(1.);
+                        self.scroff = to;
+                        self.scroll.snap_to(to);
+                    }
                 }
             }
             ARead::Prev => {
@@ -163,7 +159,6 @@ impl SRead {
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
                     book.backtrack_by(self.per);
-                    warn!("{:?}", book.last());
                     self.update(
                         data,
                         settings,
@@ -176,9 +171,11 @@ impl SRead {
                 }
             }
             ARead::Begin => {
+                self.scroff = 0.;
                 self.scroll.snap_to(0.);
             }
             ARead::End => {
+                self.scroff = 1.;
                 self.scroll.snap_to(1.);
             }
             ARead::More => {
@@ -187,7 +184,7 @@ impl SRead {
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
                     book.chap_set_len(0, Some(self.per)).current();
-                    info!("{:?}", book.last());
+                    trace!("{:?}", book.last());
                 }
             }
             ARead::Less => {
@@ -196,7 +193,7 @@ impl SRead {
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
                     book.chap_set_len(0, Some(self.per)).current();
-                    info!("{:?}", book.last());
+                    trace!("{:?}", book.last());
                 }
             }
         }

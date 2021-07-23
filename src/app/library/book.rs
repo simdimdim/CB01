@@ -275,7 +275,8 @@ impl Book {
     pub fn chap_set_len(&mut self, ch: usize, len: Option<Id>) -> &mut Self {
         let idx = if self.valid(ch) { ch } else { 0 };
         if let Some(n) = len {
-            self.chapters[idx].len = n.saturating_sub(1);
+            self.chapters[idx].len =
+                n.saturating_sub(1).min(self.chap_cur().end());
         }
         self
     }
@@ -286,21 +287,15 @@ impl Book {
             .offset
             .saturating_add(n)
             .min(self.cont_len() as Id);
-        warn!("{}", adv);
         if self.cur_ch == 0 && self.chaps_len() > 0 {
             self.cur_ch = 1;
-        }
-        warn!("contains2 {}", self.chap_cur().contains(&adv));
-        if self.chap_cur().contains(&adv) {
+        } else if self.chap_cur().contains(&adv) {
             self.chapters[0].offset = adv;
-            warn!("{:?}", self.last());
         } else if self.chap_cur().end() < adv &&
             self.valid(self.cur_ch.saturating_add(1))
         {
             self.chap_next();
-            warn!("{:?}", self.last());
             self.chapters[0].offset = self.chap_cur().offset;
-            warn!("{:?}", self.last());
         }
         self.cont_batch(self.last().range())
     }
@@ -308,11 +303,7 @@ impl Book {
     pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
         warn!("{:?}", self.chapters);
         let back = 1.max(self.last().offset.saturating_sub(n));
-        warn!("back {}", back);
-        warn!("chapter {:?}", self.chap_cur());
-        warn!("contains2 {}", self.chap_cur().contains(&back));
         if self.chap_cur().contains(&back) {
-            warn!("contains2 {}", self.chap_cur().contains(&back));
             self.chapters[0].offset = back;
         } else if back < self.chap_cur().offset &&
             1 < self.cur_ch.saturating_sub(1)

@@ -12,7 +12,7 @@ pub struct Chapter {
 }
 impl Chapter {
     pub fn contains(&self, n: &Id) -> bool {
-        &self.offset <= n && &self.end() <= n
+        &self.offset <= n && n <= &self.end()
     }
 
     pub fn range(&self) -> RangeInclusive<Id> {
