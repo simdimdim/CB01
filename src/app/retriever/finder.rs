@@ -5,7 +5,7 @@ use select::{
     predicate::{Child, Descendant, Name, Or, Text},
 };
 
-pub type HTMLAsStr<'a> = &'a str;
+pub type HTMLStr<'a> = &'a str;
 pub trait Finder: std::fmt::Debug + Send + Sync {
     fn name(&self) -> &str;
     fn pred(&self) -> &str { "Next" }
@@ -43,7 +43,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             _ => (0, 0, "".to_string()),
         }
     }
-    fn title(&self, doc: HTMLAsStr<'_>) -> Label {
+    fn title(&self, doc: HTMLStr<'_>) -> Label {
         let title = Document::from(doc)
             .select(Name("title"))
             .into_selection()
@@ -63,8 +63,8 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         }
         .into()
     }
-    fn index(&self, _doc: HTMLAsStr<'_>) -> Option<Page> { None }
-    fn links(&self, doc: HTMLAsStr<'_>) -> Vec<Page> {
+    fn index(&self, _doc: HTMLStr<'_>) -> Option<Page> { None }
+    fn links(&self, doc: HTMLStr<'_>) -> Vec<Page> {
         Document::from(doc)
             .select(Descendant(
                 Name("div"),
@@ -81,7 +81,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-    fn next(&self, doc: HTMLAsStr<'_>) -> Option<Page> {
+    fn next(&self, doc: HTMLStr<'_>) -> Option<Page> {
         Document::from(doc)
             .select(Child(Name("a"), Text))
             .filter(|a| a.text().contains(self.pred()))
@@ -92,7 +92,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
         /* TODO: Add a similarity check and only return the biggest cluster of
         similar links */
     }
-    fn text(&self, doc: HTMLAsStr<'_>) -> Vec<String> {
+    fn text(&self, doc: HTMLStr<'_>) -> Vec<String> {
         Document::from(doc)
             .select(Child(Name("div"), Name("p")))
             .map(|a| a.parent().unwrap().children().into_selection())
@@ -103,7 +103,7 @@ pub trait Finder: std::fmt::Debug + Send + Sync {
             .map(|a| a.text())
             .collect()
     }
-    fn images(&self, doc: HTMLAsStr<'_>) -> Vec<Page> {
+    fn images(&self, doc: HTMLStr<'_>) -> Vec<Page> {
         Document::from(doc)
             .select(Child(Name("div"), Name("img")))
             .map(|a| a.parent().unwrap().select(Name("img")).into_selection())

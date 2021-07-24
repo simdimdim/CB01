@@ -1,4 +1,4 @@
-use crate::{Finder, HTMLAsStr, Page};
+use crate::{Finder, HTMLStr, Page};
 use reqwest::header::{HeaderMap, REFERER};
 use select::{
     document::Document,
@@ -47,7 +47,7 @@ impl Finder for ZimangaCom {
         hm
     }
 
-    fn images(&self, doc: HTMLAsStr<'_>) -> Vec<Page> {
+    fn images(&self, doc: HTMLStr<'_>) -> Vec<Page> {
         let res = Document::from(doc)
             .select(Child(Child(Name("div"), Name("div")), Name("img")))
             .map(|a| {
