@@ -1,6 +1,6 @@
 use crate::{Chapter, Content, Id, Label, Page};
 use itertools::Either;
-use log::{info, warn};
+use log::{info, trace, warn};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::{btree_map::Range, BTreeMap},
@@ -46,7 +46,7 @@ impl Book {
         let mut cover = pb.join(&title.0);
         cover.set_extension("jpg");
         if cover.exists() {
-            info!("Hash cover: {:?}", cover);
+            trace!("Has cover: {:?}", cover);
             book.cont_add(
                 vec![Content::Image {
                     pb:  cover,
@@ -71,15 +71,20 @@ impl Book {
             acc
         });
         toplvl.sort();
-        info!("{:?}", toplvl);
+        trace!("{:?}", toplvl);
         book.cont_add(toplvl, None);
         for p in firstlevel {
             let mut dir = p.read_dir().expect(FAIL_MSG).flatten().fold(
                 vec![],
                 |mut cvec, item| {
-                    if let Some(Some(
-                        "jpg" | "jpeg" | "png" | "bmp" | "gif" | "tiff",
-                    )) = item.path().extension().map(OsStr::to_str)
+                    let path = item.path();
+                    if let Some((
+                        true,
+                        Some("jpg" | "jpeg" | "png" | "bmp" | "gif" | "tiff"),
+                    )) =
+                        path.extension().zip(path.file_name()).map(|(p1, p2)| {
+                            (p2 != OsStr::new("cover"), OsStr::to_str(p1))
+                        })
                     {
                         cvec.push(Content::Image {
                             pb:  item.path(),
@@ -90,11 +95,11 @@ impl Book {
                 },
             );
             dir.sort();
-            info!("{:?}", dir);
+            trace!("{:?}", dir);
             book.chap_add(None, dir.len());
             book.cont_add(dir, None);
         }
-
+        book.chap_next();
         (title, book)
     }
 
@@ -243,7 +248,7 @@ impl Book {
                 );
             }
             1 => {
-                warn!("Only a cover exists.");
+                trace!("Only a cover exists.");
                 cont.enumerate().for_each(|(n, content)| {
                     self.content.insert(n as Id + 1, content);
                 });
@@ -282,42 +287,38 @@ impl Book {
     }
 
     pub fn advance_by(&mut self, n: Id) -> Range<'_, Id, Content> {
-        let adv = self
-            .last()
-            .offset
-            .saturating_add(n)
-            .min(self.cont_len() as Id);
-        if self.cur_ch == 0 && self.chaps_len() > 0 {
-            self.cur_ch = 1;
-        } else if self.chap_cur().contains(&adv) {
+        let adv = self.last_pos().saturating_add(n).min(self.cont_len() as Id);
+        if self.chap_cur().contains(&adv) {
             self.chapters[0].offset = adv;
         } else if self.chap_cur().end() < adv &&
             self.valid(self.cur_ch.saturating_add(1))
         {
             self.chap_next();
-            self.chapters[0].offset = self.chap_cur().offset;
+            self.chapters[0].offset = self.cur_beg();
         }
         self.cont_batch(self.last().range())
     }
 
     pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
-        warn!("{:?}", self.chapters);
-        let back = 1.max(self.last().offset.saturating_sub(n));
+        let back = 1.max(self.last_pos().saturating_sub(n));
         if self.chap_cur().contains(&back) {
             self.chapters[0].offset = back;
-        } else if back < self.chap_cur().offset &&
-            1 < self.cur_ch.saturating_sub(1)
-        {
+        } else if back < self.cur_beg() && 1 < self.cur_ch.saturating_sub(1) {
             self.chap_prev();
-            self.chapters[0].offset = self.chap_cur().offset;
-            warn!("Next {:?}", self.last());
-        } else if true {
-            warn!("true? {}", back);
+            self.chapters[0].offset = self.cur_beg();
+        } else if 1 <= self.cur_ch.saturating_sub(1) {
+            self.chapters[0].offset = self.cur_beg();
         }
         self.cont_batch(self.last().range())
     }
 
     pub fn chap_cur(&self) -> &Chapter { &self.chapters[self.cur_ch] }
+
+    pub fn last_pos(&self) -> Id { self.chapters[0].offset }
+
+    pub fn cur_beg(&self) -> Id { self.chap_cur().offset }
+
+    pub fn cur_end(&self) -> Id { self.chap_cur().end() }
 
     pub fn chap_next(&mut self) {
         let next = self.cur_ch.saturating_add(1);
@@ -335,11 +336,21 @@ impl Book {
 
     pub fn is_last(&self) -> bool {
         self.content
-            .range(self.chapters[self.cur_ch].range().last().unwrap()..)
+            .range(self.chapters[self.cur_ch].end()..)
             .into_iter()
             .count() ==
             1
     }
+
+    pub fn chap_sort_url(&mut self) {
+        let cur = self.chap_cur().clone();
+        self.chapters[1..].sort_by(|k1, k2| k1.src.cmp(&k2.src));
+        if let Some(n) = self.chapters.iter().position(|c| c == &cur) {
+            self.cur_ch = n;
+        };
+    }
+
+    pub fn guess(&self) -> Page { "".into() }
 }
 
 impl Default for Book {

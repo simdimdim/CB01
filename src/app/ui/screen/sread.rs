@@ -133,41 +133,41 @@ impl SRead {
                 self.scroff = off;
             }
             ARead::Next => {
-                // TODO: Add a bit more logic concerning single strip
-                // and multi-page modes
-                warn!("N:");
                 if let Some(book) =
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
-                    let end = self.scroff >= 1.;
-                    warn!("Nexted");
-                    if end || !self.single {
+                    if self.scroff >= 1. || !self.single {
                         book.advance_by(self.per);
                         self.update(data, settings, ARead::Begin);
                     } else {
-                        let to = (self.scroff + (self.per as f32 * 3.).recip())
-                            .max(1.);
+                        let to = (self.scroff + (self.per as f32 * 1.5).recip())
+                            .min(1.);
                         self.scroff = to;
                         self.scroll.snap_to(to);
                     }
                 }
             }
             ARead::Prev => {
-                // TODO: Add a bit more logic concerning single strip
-                // and multi-page modes
                 if let Some(book) =
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
-                    book.backtrack_by(self.per);
-                    self.update(
-                        data,
-                        settings,
-                        if self.smooth {
-                            ARead::Begin
-                        } else {
-                            ARead::End
-                        },
-                    );
+                    if self.scroff == 0. || !self.single {
+                        book.backtrack_by(self.per);
+                        self.update(
+                            data,
+                            settings,
+                            if self.smooth {
+                                ARead::Begin
+                            } else {
+                                ARead::End
+                            },
+                        );
+                    } else {
+                        let to = (self.scroff - (self.per as f32 * 1.5).recip())
+                            .max(0.);
+                        self.scroff = to;
+                        self.scroll.snap_to(to);
+                    }
                 }
             }
             ARead::Begin => {
