@@ -37,13 +37,21 @@ impl Book {
         }
     }
 
-    pub fn open<T: Into<Label>>(label: T, pb: PathBuf) -> (Label, Book) {
+    pub fn open(pb: PathBuf) -> (Label, Book) {
         static FAIL_MSG: &str = "read_dir call failed";
 
-        let title: Label = label.into();
-        let pb = pb.join(&title.0);
+        let title;
+        let canon = pb.canonicalize().unwrap();
+        if pb.is_dir() {
+            title = canon.file_name().unwrap().to_str().unwrap();
+        } else if pb.is_file() {
+            title = canon.parent().unwrap().to_str().unwrap();
+        } else {
+            title = "";
+        }
+        let pb = pb.join(title);
         let mut book = Book::default();
-        let mut cover = pb.join(&title.0);
+        let mut cover = pb.join(title);
         cover.set_extension("jpg");
         if cover.exists() {
             trace!("Has cover: {:?}", cover);
@@ -100,7 +108,7 @@ impl Book {
             book.cont_add(dir, None);
         }
         book.chap_next();
-        (title, book)
+        (title.into(), book)
     }
 
     pub fn cover(&self) -> &Content { &self.content[&0] }

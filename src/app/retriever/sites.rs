@@ -2,7 +2,7 @@ use crate::{Finder, HTMLStr, Page};
 use reqwest::header::{HeaderMap, REFERER};
 use select::{
     document::Document,
-    predicate::{Child, Name},
+    predicate::{Child, Class, Name},
 };
 use std::collections::HashMap;
 use url::Host;
@@ -46,6 +46,14 @@ impl Finder for ZimangaCom {
         hm.insert(REFERER, "https://zinmanga.com/".parse().unwrap());
         hm
     }
+
+    // fn index(&self, doc: HTMLStr<'_>) -> Option<Page> {
+    //     let res = Document::from(doc)
+    //         .select(Child(Class("breadcrumb"), Name("a")))
+    //         .map(|a| a.attr("href").unwrap().to_string().into())
+    //         .nth(2);
+    //     res
+    // }
 
     fn images(&self, doc: HTMLStr<'_>) -> Vec<Page> {
         let res = Document::from(doc)

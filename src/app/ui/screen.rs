@@ -2,17 +2,19 @@ use crate::{settings::AppState, AppData, AppSettings, Message};
 use iced::{Command, Element};
 
 pub mod sadd;
+pub mod sbook;
 pub mod slib;
 pub mod sread;
 pub mod sset;
 
-pub use self::{sadd::*, slib::*, sread::*, sset::*};
+pub use self::{sadd::*, sbook::*, slib::*, sread::*, sset::*};
 
 pub struct Screens {
     pub sset:  SSet,
     pub slib:  SLib,
     pub sread: SRead,
     pub sadd:  SAdd,
+    pub sbook: SBook,
     pub state: AppState,
 }
 #[derive(Debug, Clone)]
@@ -22,6 +24,7 @@ pub enum ViewA {
     ARead(ARead),
     ALib(ALib),
     AAdd(AAdd),
+    ABook(ABook),
 }
 
 impl<'a> Screens {
@@ -31,6 +34,7 @@ impl<'a> Screens {
             slib:  SLib::new(),
             sread: SRead::new(),
             sadd:  SAdd::new(),
+            sbook: SBook::new(),
             state: AppState::Add,
         }
     }
@@ -62,6 +66,7 @@ impl<'a> Screens {
             ViewA::ARead(a) => return self.sread.update(data, settings, a),
             ViewA::ALib(a) => return self.slib.update(a),
             ViewA::AAdd(a) => return self.sadd.update(data, a),
+            ViewA::ABook(a) => return self.sbook.update(data, a),
         };
         Command::none()
     }

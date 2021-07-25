@@ -154,7 +154,7 @@ impl Default for Library {
     fn default() -> Self {
         let mut titles = Bimap::new();
         let mut books = BTreeMap::new();
-        let (_, b) = Book::open("", PathBuf::from("."));
+        let (_, b) = Book::open(PathBuf::from("."));
         books.insert(titles.add_name::<Id>("Runtime dir".into()), b);
         let mut groups = HashMap::new();
         groups.insert("Reading".to_owned(), HashSet::new());

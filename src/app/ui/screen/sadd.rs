@@ -152,14 +152,11 @@ impl<'a> SAdd {
                 .as_ref()
                 .map(|b| AAdd::AddBook(b.to_owned()))
                 .unwrap_or_else(|| {
-                    // AAdd::Fetch(
-                    //     "https://zinmanga.com/manga/first-miss-reborn/chapter-1/"
-                    //         .parse()
-                    //         .unwrap(),
-                    // )
-                    let t = Label("First Miss Reborn -".to_owned());
-                    let (t, b) = Book::open(t, PathBuf::from("library"));
-                    AAdd::UpdateBook(t, Box::new(b))
+                    AAdd::Fetch(
+                        "https://zinmanga.com/manga/first-miss-reborn/chapter-2/"
+                            .parse()
+                            .unwrap(),
+                    )
                 })
                 .into(),
         );

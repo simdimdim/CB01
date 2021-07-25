@@ -151,7 +151,7 @@ impl SRead {
                 if let Some(book) =
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
-                    if self.scroff == 0. || !self.single {
+                    if self.scroff <= f32::EPSILON || !self.single {
                         book.backtrack_by(self.per);
                         self.update(
                             data,
