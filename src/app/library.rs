@@ -2,6 +2,7 @@ use crate::Bimap;
 use core::ops::Deref;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    fmt::Display,
     path::PathBuf,
     sync::atomic::{AtomicU16, Ordering},
 };
@@ -70,7 +71,6 @@ impl Library {
 
     /// true on success
     pub fn rename(&mut self, old: &Label, new: &str) -> bool {
-        // let newlabel = new.into();
         self.titles.rename_by_title(old, new.into())
     }
 
@@ -154,8 +154,8 @@ impl Default for Library {
     fn default() -> Self {
         let mut titles = Bimap::new();
         let mut books = BTreeMap::new();
-        let (_, b) = Book::open(PathBuf::from("."));
-        books.insert(titles.add_name::<Id>("Runtime dir".into()), b);
+        let (t, b) = Book::open(PathBuf::from("."));
+        books.insert(titles.add_name::<Id>(t), b);
         let mut groups = HashMap::new();
         groups.insert("Reading".to_owned(), HashSet::new());
         Self {

@@ -196,6 +196,12 @@ impl Application for App {
                 }) => {
                     self.update(AppState::Add.into(), clipboard);
                 }
+                Keyboard(KeyPressed {
+                    key_code: KeyCode::F5 | KeyCode::Numpad4,
+                    ..
+                }) => {
+                    self.update(AppState::Info.into(), clipboard);
+                }
                 _ => {}
             },
             Message::Exit => {

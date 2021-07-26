@@ -1,18 +1,32 @@
 use crate::{AppData, Id, Message, ViewA};
-use iced::{text_input, Command, Container, Element};
+use iced::{
+    pick_list,
+    text_input,
+    Align,
+    Column,
+    Command,
+    Container,
+    Element,
+    Length,
+    PickList,
+    Row,
+    Space,
+};
 
 #[derive(Debug, Clone)]
 pub struct SBook {
-    pub titleinput: text_input::State,
-    pub err:        EBook,
-    pub show:       Id,
-    pub title:      String,
+    pub titlein: text_input::State,
+    pub pick:    pick_list::State<String>,
+    pub err:     EBook,
+    pub show:    Option<Id>,
+    pub title:   String,
 }
 #[derive(Debug, Clone)]
 pub enum ABook {
     Prev,
     Next,
-    View(Id),
+    // View(Id),
+    View(String),
     UpdateTitle(String),
 }
 #[derive(Debug, Clone)]
@@ -22,19 +36,44 @@ pub enum EBook {
 impl SBook {
     pub fn new() -> Self {
         Self {
-            titleinput: text_input::State::new(),
-            err:        EBook::No,
-            show:       0,
-            title:      "".to_owned(),
+            titlein: text_input::State::default(),
+            pick:    pick_list::State::default(),
+            err:     EBook::No,
+            show:    None,
+            title:   "".to_owned(),
         }
     }
 
-    pub fn view(&mut self, _data: &mut AppData) -> Element<'_, Message> {
+    pub fn view(
+        &mut self, data: &mut AppData, _darkmode: bool,
+    ) -> Element<'_, Message> {
+        let mut v = data.library.titles.find_all(self.title.as_str());
+        if let Some(pos) = v.iter().position(|x| x == &self.title) {
+            v.remove(pos);
+        };
         let title =
-            iced::TextInput::new(&mut self.titleinput, "", &self.title, |s| {
+            iced::TextInput::new(&mut self.titlein, "", &self.title, |s| {
                 ABook::UpdateTitle(s).into()
             });
-        Container::new(title).into()
+        let mut main = Column::new().align_items(Align::Center).push(
+            Row::new()
+                .align_items(Align::Start)
+                .width(Length::Fill)
+                .push(Space::new(Length::Fill, Length::Shrink))
+                .push(title)
+                .push(Space::new(Length::Fill, Length::Shrink)),
+        );
+        if !v.is_empty() {
+            let select =
+                PickList::new(&mut self.pick, v, None, |s| ABook::View(s).into());
+            main = main.push(select);
+        }
+        Container::new(main)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Align::Center)
+            .align_y(Align::Center)
+            .into()
     }
 
     pub fn update(
@@ -43,9 +82,12 @@ impl SBook {
         match message {
             ABook::Prev => {}
             ABook::Next => {}
-            ABook::View(id) => {
-                self.show = id;
-                self.title = data.library.titles.title(id).unwrap_or_default().0;
+            ABook::View(title) => {
+                if let Some(id) = data.library.titles.id(&title.into()).copied() {
+                    self.show = Some(id);
+                    self.title =
+                        data.library.titles.title(id).unwrap_or_default().0;
+                }
             }
             ABook::UpdateTitle(t) => self.title = t,
         };

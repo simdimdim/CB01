@@ -49,7 +49,6 @@ impl Book {
         } else {
             title = "";
         }
-        let pb = pb.join(title);
         let mut book = Book::default();
         let mut cover = pb.join(title);
         cover.set_extension("jpg");

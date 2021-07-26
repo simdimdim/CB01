@@ -1,5 +1,5 @@
 use crate::{Id, Library};
-use std::hash::Hash;
+use std::{hash::Hash, ops::Deref};
 
 #[derive(Debug, Clone)]
 pub struct Bimap<K: Clone + Hash + Eq, V: Copy + Hash + Eq> {
@@ -68,5 +68,19 @@ where
             .remove_by_right(&old)
             .map(|(_, v)| self.map.insert(new, v))
             .is_some()
+    }
+
+    pub fn find_all(&self, pred: &str) -> Vec<String>
+    where
+        K: Deref<Target = String>, {
+        self.map
+            .left_values()
+            .into_iter()
+            .fold(vec![], |mut acc, k| {
+                if k.deref().contains(pred) {
+                    acc.push(k.deref().clone());
+                }
+                acc
+            })
     }
 }

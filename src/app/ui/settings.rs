@@ -6,6 +6,7 @@ pub enum AppState {
     Settings,
     Reader,
     Library,
+    Info,
     Add,
 }
 impl Default for AppState {

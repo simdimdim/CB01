@@ -35,7 +35,7 @@ impl<'a> Screens {
             sread: SRead::new(),
             sadd:  SAdd::new(),
             sbook: SBook::new(),
-            state: AppState::Add,
+            state: AppState::Info,
         }
     }
 
@@ -49,6 +49,7 @@ impl<'a> Screens {
             }
             AppState::Library => self.slib.view(data),
             AppState::Add => self.sadd.view(settings, self.sset.darkmode),
+            AppState::Info => self.sbook.view(data, self.sset.darkmode),
         }
     }
 
