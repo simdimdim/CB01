@@ -77,7 +77,7 @@ where
             .left_values()
             .into_iter()
             .fold(vec![], |mut acc, k| {
-                if k.deref().contains(pred) {
+                if k.deref().contains(pred) && !pred.is_empty() {
                     acc.push(k.deref().clone());
                 }
                 acc

@@ -1,4 +1,4 @@
-use crate::Message;
+use crate::{Message, BLACK, WHITE};
 use iced::{checkbox, Background, Color};
 
 #[derive(Debug, Copy, Clone)]
@@ -36,54 +36,10 @@ impl Default for AppSettings {
 
 pub trait Styled {
     fn dark(&self) -> (Background, Color, f32, f32, Color) {
-        (
-            Color {
-                r: 255.,
-                g: 255.,
-                b: 255.,
-                a: 1.,
-            }
-            .into(),
-            Color {
-                r: 0.,
-                g: 0.,
-                b: 0.,
-                a: 1.,
-            },
-            0.,
-            0.,
-            Color {
-                r: 255.,
-                g: 255.,
-                b: 255.,
-                a: 1.,
-            },
-        )
+        (WHITE.into(), BLACK, 0., 0., WHITE)
     }
     fn white(&self) -> (Background, Color, f32, f32, Color) {
-        (
-            Color {
-                r: 0.,
-                g: 0.,
-                b: 0.,
-                a: 1.,
-            }
-            .into(),
-            Color {
-                r: 0.,
-                g: 0.,
-                b: 0.,
-                a: 1.,
-            },
-            0.,
-            0.,
-            Color {
-                r: 0.,
-                g: 0.,
-                b: 0.,
-                a: 1.,
-            },
-        )
+        (BLACK.into(), BLACK, 0., 0., BLACK)
     }
     fn style(&self) -> (Background, Color, f32, f32, Color);
     fn checkbox(&self) -> checkbox::Style {
@@ -108,18 +64,8 @@ impl From<bool> for Theme {
 impl From<Theme> for Color {
     fn from(theme: Theme) -> Color {
         match theme {
-            Theme::Dark => Color {
-                r: 255.,
-                g: 255.,
-                b: 255.,
-                a: 1.,
-            },
-            Theme::White => Color {
-                r: 0.,
-                g: 0.,
-                b: 0.,
-                a: 1.,
-            },
+            Theme::Dark => WHITE,
+            Theme::White => BLACK,
         }
     }
 }

@@ -28,7 +28,7 @@ use iced::{
     VerticalAlignment,
 };
 use reqwest::Url;
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 use tokio::time::sleep;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

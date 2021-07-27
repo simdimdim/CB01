@@ -6,13 +6,12 @@ use iced::{
     Container,
     Element,
     Length,
-    Rectangle,
     Row,
     Scrollable,
     Space,
 };
 use itertools::Either;
-use log::{error, info, trace, warn};
+use log::trace;
 
 #[derive(Debug)]
 pub struct SRead {

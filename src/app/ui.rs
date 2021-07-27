@@ -28,6 +28,37 @@ pub mod settings;
 
 pub use self::{data::*, screen::*, settings::*};
 
+pub static RED: Color = Color {
+    r: 255.,
+    g: 0.,
+    b: 0.,
+    a: 1.,
+};
+pub static YELLOW: Color = Color {
+    r: 255.,
+    g: 255.,
+    b: 0.,
+    a: 1.,
+};
+pub static GREEN: Color = Color {
+    r: 0.,
+    g: 255.,
+    b: 0.,
+    a: 1.,
+};
+pub static WHITE: Color = Color {
+    r: 255.,
+    g: 255.,
+    b: 255.,
+    a: 1.,
+};
+pub static BLACK: Color = Color {
+    r: 0.,
+    g: 0.,
+    b: 0.,
+    a: 1.,
+};
+
 pub struct App {
     data:     AppData,
     settings: AppSettings,

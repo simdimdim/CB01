@@ -2,7 +2,6 @@ use crate::Bimap;
 use core::ops::Deref;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::Display,
     path::PathBuf,
     sync::atomic::{AtomicU16, Ordering},
 };
@@ -10,9 +9,8 @@ use std::{
 pub mod book;
 pub mod chapter;
 pub mod content;
-pub use book::*;
-pub use chapter::*;
-pub use content::*;
+
+pub use self::{book::*, chapter::*, content::*};
 
 pub(crate) type Id = u16;
 type IdStaticType = AtomicU16;
