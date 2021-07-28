@@ -1,5 +1,6 @@
-use crate::{Book, Content, Label};
+use crate::{Book, Chapter, Content, Id, Label};
 use chrono::Duration;
+use futures::future::join_all;
 use reqwest::{cookie::Jar, Client, Url};
 use sites::Include;
 use std::{
@@ -8,6 +9,7 @@ use std::{
         BTreeMap,
         HashMap,
     },
+    ops::Deref,
     path::PathBuf,
     sync::Arc,
 };
@@ -123,12 +125,13 @@ impl Retriever {
     pub async fn images(&self, page: &Page) -> Vec<Page> {
         // use tokio::time::sleep;
         // tokio::time::sleep(std::time::Duration::from_secs_f32(0.250)). await;
-        // let mut res = vec![];
-        let mut images: Vec<Page> = vec![];
         let finder = find!(self, page);
         let headers = finder.headers();
-        for mut p in page.images(finder).await.into_iter() {
-            self.add_related(page, &p).await;
+        let images = page.images(finder);
+        for p in images.iter() {
+            self.add_related(page, p).await;
+        }
+        images.into_iter().fold(vec![], |mut res, mut p| {
             p.prep(
                 self.client
                     .get(p.url.clone())
@@ -136,9 +139,9 @@ impl Retriever {
                     .build()
                     .unwrap(),
             );
-            images.push(p);
-        }
-        images
+            res.push(p);
+            res
+        })
     }
 
     pub async fn new_book(&self, url: Url) -> (Label, Box<Book>) {
@@ -147,35 +150,49 @@ impl Retriever {
         let mut index = self.index(&init).await;
         index.empty();
         let mut bk = Book::new(Some(index));
-        let mut images = self.images(&init).await;
+        // TODO: determine if init is chapter or index and act appropriately
+        let images = self.images(&init).await;
         bk.chap_add(None, images.len())
             .set_src(Some(init.url.clone()));
-        {
-            // TODO: to be moved in it's own method and processed later
-            // for batch dls take a look at:
-            // https://gist.github.com/mtkennerly/b513e7fe89c735e5a5df672c503404d7#file-main-rs-L42
-            // TODO:
-            images.iter_mut().for_each(|p| p.empty());
-            bk.chapters[0].offset = 1;
-            bk.chapters[0].len = 1;
-            let name = || title.clone();
-            let mut cnt: Vec<Content> = vec![];
-            for (n, p) in images.into_iter().enumerate() {
-                let num = self.num(&p).await;
-                let path = PathBuf::from("library")
-                    .join(name().0)
-                    .join(format!("{:04}", num.1));
-                std::fs::create_dir_all(&path).unwrap();
-                let mut content = Content::Image {
-                    pb:  path.join(format!("{:04}", n)),
-                    src: Some(p.url.clone()),
-                };
-                content.save(&p.image(&self.client).await).await;
-                cnt.push(content);
-            }
-            bk.cont_add(cnt, None);
-        }
         (title, Box::new(bk))
+    }
+
+    pub async fn new_chapter(&self, page: &Page) -> Chapter {
+        let ch = Chapter {
+            name: Some(self.title(page).await),
+            src: Some(page.url.clone()),
+            ..Default::default()
+        };
+        ch
+    }
+
+    pub async fn chap_dl(&self, mut ch: Chapter) -> Vec<Content> {
+        if let Some(url) = ch.src {
+            let page = self.get(url.into()).await;
+            let mut images = self.images(&page).await;
+            ch.len = images.len() as Id;
+            let name = &ch.name.unwrap().deref().clone();
+            let res = join_all(images.iter_mut().enumerate().map(
+                |(n, p)| async move {
+                    let num = self.num(p).await;
+                    let path = PathBuf::from("library")
+                        .join(name)
+                        .join(format!("{:04}", num.1));
+                    std::fs::create_dir_all(&path).unwrap();
+                    let mut content = Content::Image {
+                        pb:  path.join(format!("{:04}", n)),
+                        src: Some(p.url.clone()),
+                    };
+                    content.save(&p.image(&self.client).await).await;
+                    p.empty();
+                    content
+                },
+            ))
+            .await;
+            ch.full = true;
+            return res;
+        }
+        vec![]
     }
 
     pub async fn add_host(&mut self, host: Host, idx: usize) {

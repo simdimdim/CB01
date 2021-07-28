@@ -1,3 +1,4 @@
+# cargo-features = ["edition2021"]
 [package]
 authors = ["simdimdim <simdimdim@gmail.com>"]
 default-run = "main"
@@ -28,7 +29,7 @@ git = "https://github.com/hecrj/iced"
 git = "https://github.com/hecrj/iced"
 [dependencies.simple_logger]
 default-features = true # colorized
-version = "1.11.0"
+version = "1.11.0" 
 [dependencies.reqwest]
 features = ["stream", "cookies", "gzip"]
 version = "0.11.4"

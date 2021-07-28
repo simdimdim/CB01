@@ -7,7 +7,7 @@ pub struct Chapter {
     pub offset: Id,
     pub len:    Id,
     pub src:    Option<Url>,
-    pub name:   Option<String>,
+    pub name:   Option<Label>,
     pub full:   bool,
 }
 impl Chapter {
@@ -97,7 +97,7 @@ impl Chapter {
     }
 
     pub fn set_name(&mut self, name: Option<Label>) -> &mut Self {
-        self.name = name.as_deref().map(String::to_owned);
+        self.name = name;
         self
     }
 }

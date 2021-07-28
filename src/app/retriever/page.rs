@@ -153,7 +153,7 @@ impl Page {
     }
 
     /// Get pages to images
-    pub async fn images(&self, find: Find<'_>) -> Vec<Page> {
+    pub fn images(&self, find: Find<'_>) -> Vec<Page> {
         self.html
             .lock()
             .unwrap()
