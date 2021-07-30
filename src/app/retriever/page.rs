@@ -21,7 +21,7 @@ pub struct Page {
 }
 
 /// Shorthand for Finder
-type Find<'a> = &'a Box<dyn Finder>;
+pub type Find<'a> = &'a Box<dyn Finder>;
 
 impl Page {
     /// Load the page with a Request

@@ -1,4 +1,4 @@
-use crate::{Chapter, Content, Id, Label, Page};
+use crate::{page::Find, Chapter, Content, Id, Label, Page};
 use itertools::Either;
 use log::{info, trace, warn};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -357,7 +357,25 @@ impl Book {
         };
     }
 
-    pub fn guess(&self) -> Page { "".into() }
+    pub async fn next_by_last(
+        &self, find: Find<'_>, ret: &crate::Retriever,
+    ) -> Option<Page> {
+        if let Some(page) = self.last().src.clone().map(Page::from) {
+            return ret.get(page).await.next(find).await;
+        }
+        None
+    }
+
+    pub async fn next_by_index(
+        &self, find: Find<'_>, ret: Option<&crate::Retriever>,
+    ) -> Option<Page> {
+        if let (Some(page), None) = (self.src.as_ref(), ret) {
+            return page.links(find).await.pop();
+        } else if let (Some(page), Some(r)) = (self.src.clone(), ret) {
+            return r.get(page).await.links(find).await.pop();
+        };
+        None
+    }
 }
 
 impl Default for Book {
