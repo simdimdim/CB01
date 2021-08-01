@@ -8,7 +8,7 @@ fn book() {
         (0..5).map(|_| Content::Empty).collect::<Vec<Content>>(),
         None,
     );
-    book.chap_add(None, 2);
+    book.chap_add_from_parts(None, 2);
     assert_eq!(book.chapter(1).map(Iterator::count), Some(3));
     remove_cont()
 }

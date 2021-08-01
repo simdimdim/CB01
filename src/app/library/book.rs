@@ -9,6 +9,7 @@ use std::{
     path::PathBuf,
 };
 
+#[derive(Debug, Copy, Clone)]
 pub enum Position {
     Last,
     AfterCurrent,
@@ -103,7 +104,7 @@ impl Book {
             );
             dir.sort();
             trace!("{:?}", dir);
-            book.chap_add(None, dir.len());
+            book.chap_add_from_parts(None, dir.len());
             book.cont_add(dir, None);
         }
         book.chap_next();
@@ -130,7 +131,9 @@ impl Book {
         }
     }
 
-    pub fn chap_add(&mut self, n1: Option<usize>, l: usize) -> &mut Chapter {
+    pub fn chap_add_from_parts(
+        &mut self, n1: Option<usize>, l: usize,
+    ) -> &mut Chapter {
         let prev;
         match n1 {
             Some(n) => {
@@ -151,6 +154,30 @@ impl Book {
             }
         }
         self.chapters.last_mut().unwrap()
+    }
+
+    pub fn chap_add(&mut self, ch: Chapter, pos: Option<Position>) {
+        let default = Position::Last;
+        match pos.unwrap_or(default) {
+            Position::Last => self.chapters.push(ch),
+            Position::AfterCurrent => self
+                .chapters
+                .insert(self.cur_ch.saturating_add(1).min(self.chaps_len()), ch),
+            Position::BeforeCurrent => self.chapters.insert(
+                if self.valid(self.cur_ch.saturating_sub(1).max(1)) {
+                    self.cur_ch.saturating_sub(1).max(1)
+                } else {
+                    match default {
+                        Position::Last => self.chaps_len(),
+                        Position::Cover => 0,
+                        _ => 1,
+                    }
+                },
+                ch,
+            ),
+            Position::First => self.chapters.insert(1, ch),
+            Position::Cover => self.chapters[0] = ch,
+        }
     }
 
     pub fn chap_remove(&mut self, n: usize) -> Option<(Chapter, Vec<Content>)> {

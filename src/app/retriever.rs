@@ -152,7 +152,7 @@ impl Retriever {
         let mut bk = Book::new(Some(index));
         // TODO: determine if init is chapter or index and act appropriately
         let images = self.images(&init).await;
-        bk.chap_add(None, images.len())
+        bk.chap_add_from_parts(None, images.len())
             .set_src(Some(init.url.clone()));
         (title, Box::new(bk))
     }
