@@ -18,6 +18,7 @@ fn chapter() {
     let chap = Chapter {
         offset: 1,
         len:    1,
+        path:   None,
         src:    None,
         name:   None,
         full:   false,
@@ -29,52 +30,38 @@ fn chapter() {
 fn shorten_chapter() {
     let mut c0 = Chapter {
         offset: 39,
-        len:    10,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 10,
+        ..Default::default()
     };
     let mut c1 = Chapter {
         offset: 40,
-        len:    10,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 10,
+        ..Default::default()
     };
     let mut c2 = Chapter {
         offset: 55,
-        len:    3,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 3,
+        ..Default::default()
     };
     let mut c3 = Chapter {
         offset: 45,
-        len:    20,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 20,
+        ..Default::default()
     };
     let mut c4 = Chapter {
         offset: 60,
-        len:    10,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 10,
+        ..Default::default()
     };
     let mut c5 = Chapter {
         offset: 70,
-        len:    5,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 5,
+        ..Default::default()
     };
     let other = Chapter {
         offset: 50,
-        len:    10,
-        name:   None,
-        src:    None,
-        full:   false,
+        len: 10,
+        ..Default::default()
     };
     assert_eq!(c0.shorten(other.range()), 10);
     assert_eq!(c1.shorten(other.range()), 9);

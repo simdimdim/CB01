@@ -1,11 +1,12 @@
 use crate::{Id, Label};
 use reqwest::Url;
-use std::ops::RangeInclusive;
+use std::{ops::RangeInclusive, path::PathBuf};
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Chapter {
     pub offset: Id,
     pub len:    Id,
+    pub path:   Option<PathBuf>,
     pub src:    Option<Url>,
     pub name:   Option<Label>,
     pub full:   bool,
