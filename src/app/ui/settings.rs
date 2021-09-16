@@ -16,23 +16,23 @@ impl From<AppState> for Message {
     fn from(a: AppState) -> Self { Message::Switch(a) }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct AppSettings {
     pub should_exit: bool,
     pub fullscreen:  bool,
     pub width:       u32,
     pub height:      u32,
 }
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            should_exit: Default::default(),
-            fullscreen:  Default::default(),
-            width:       Default::default(),
-            height:      Default::default(),
-        }
-    }
-}
+// impl Default for AppSettings {
+//     fn default() -> Self {
+//         Self {
+//             should_exit: Default::default(),
+//             fullscreen:  Default::default(),
+//             width:       Default::default(),
+//             height:      Default::default(),
+//         }
+//     }
+// }
 
 pub trait Styled {
     fn dark(&self) -> (Background, Color, f32, f32, Color) {

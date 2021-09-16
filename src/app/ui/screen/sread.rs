@@ -58,51 +58,18 @@ impl SRead {
         darkmode: bool,
     ) -> Element<'a, Message> {
         let pics = data.library.book(self.blabel.as_ref().unwrap()).current();
-        let res = if !self.single {
-            Either::Left(
-                if self.rev {
-                    Either::Left(pics.rev())
-                } else {
-                    Either::Right(pics)
-                }
-                .fold(Row::new(), |mut row, (_n, cnt)| {
-                    let el = cnt.view((self.per > 1).then(|| self.per), darkmode);
-                    row = row.push(el);
-                    row
-                }),
-            )
-        } else {
-            let mut scroll = Scrollable::new(&mut self.scroll);
-            for (_, content) in pics {
-                if let content @ Content::Image { .. } |
-                content @ Content::Text { .. } = content
-                {
-                    let el = content.view(Some(2), darkmode);
-                    let row = Row::new()
-                        .push(Space::new(Length::Fill, Length::Shrink))
-                        .push(el)
-                        .push(Space::new(Length::Fill, Length::Shrink))
-                        .height(Length::Shrink);
-                    scroll = scroll.push(row);
-                }
+        if !self.single {
+            let res = if self.rev {
+                Either::Left(pics.rev())
+            } else {
+                Either::Right(pics)
             }
-            Either::Right(
-                scroll
-                    .on_scroll(move |off| {
-                        if off >= 1. {
-                            ARead::Next.into()
-                        } else if off == 0.0f32 {
-                            ARead::Prev.into()
-                        } else {
-                            ARead::Scroll(off).into()
-                        }
-                    })
-                    .max_width(settings.width),
-            )
-        };
-
-        match res {
-            Either::Left(res) => Container::new(
+            .fold(Row::new(), |mut row, (_n, cnt)| {
+                let el = cnt.view((self.per > 1).then(|| self.per), darkmode);
+                row = row.push(el);
+                row
+            });
+            return Container::new(
                 res.max_width(settings.width)
                     .max_height(settings.height)
                     .width(Length::Shrink)
@@ -113,14 +80,39 @@ impl SRead {
             .height(Length::Fill)
             .align_x(Align::Center)
             .align_y(Align::Center)
-            .into(),
-            Either::Right(scroll) => Container::new(scroll)
+            .into();
+        } else {
+            let mut scroll = Scrollable::new(&mut self.scroll)
+                .on_scroll(move |off| {
+                    if off >= 1. {
+                        ARead::Next.into()
+                    } else if off == 0.0f32 {
+                        ARead::Prev.into()
+                    } else {
+                        ARead::Scroll(off).into()
+                    }
+                })
+                .max_width(settings.width);
+            for (_, cnt) in pics {
+                if let content @ (Content::Image { .. } | Content::Text { .. }) =
+                    cnt
+                {
+                    let el = content.view(Some(2), darkmode);
+                    let row = Row::new()
+                        .push(Space::new(Length::Fill, Length::Shrink))
+                        .push(el)
+                        .push(Space::new(Length::Fill, Length::Shrink))
+                        .height(Length::Shrink);
+                    scroll = scroll.push(row);
+                }
+            }
+            return Container::new(scroll)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .align_x(Align::Center)
                 .align_y(Align::Center)
-                .into(),
-        }
+                .into();
+        };
     }
 
     pub fn update(

@@ -1,13 +1,13 @@
 use crate::{Library, APP_NAME};
 use directories_next::{ProjectDirs, UserDirs};
 use iced::{
+    clipboard,
     keyboard::Modifiers,
     window::{
         self,
         Mode::{Fullscreen, Windowed},
     },
     Application,
-    Clipboard,
     Color,
     Command,
     Element,
@@ -107,9 +107,7 @@ impl Application for App {
 
     fn title(&self) -> String { APP_NAME.to_owned() }
 
-    fn update(
-        &mut self, message: Message, clipboard: &mut Clipboard,
-    ) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Command<Message> {
         handle_settings(&mut self.settings, &message);
         match message {
             Message::EventOccurred(event) => match event {
@@ -118,8 +116,8 @@ impl Application for App {
                     modifiers: Modifiers::CTRL,
                 }) if self.screens.sset.anywhere => {
                     self.screens.state = AppState::Add;
-                    if let Some(s) = clipboard.read() {
-                        return Command::perform(async {}, move |_| {
+                    clipboard::read(|c| {
+                        if let Some(s) = c {
                             AAdd::Fetch(
                                 s.parse()
                                     .map_err(|e| {
@@ -132,8 +130,10 @@ impl Application for App {
                                     }),
                             )
                             .into()
-                        });
-                    }
+                        } else {
+                            Message::from(EAdd::EmptyClipboard)
+                        }
+                    });
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F,
@@ -153,14 +153,13 @@ impl Application for App {
                 }) => {
                     self.update(
                         ASet::ToggleDark(!self.screens.sset.darkmode).into(),
-                        clipboard,
                     );
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::Home,
                     ..
                 }) => {
-                    self.update(ARead::Begin.into(), clipboard);
+                    self.update(ARead::Begin.into());
                 }
                 Keyboard(KeyPressed {
                     key_code:
@@ -171,7 +170,7 @@ impl Application for App {
                         KeyCode::W,
                     ..
                 }) => {
-                    self.update(ARead::Prev.into(), clipboard);
+                    self.update(ARead::Prev.into());
                 }
                 Keyboard(KeyPressed {
                     key_code:
@@ -183,55 +182,55 @@ impl Application for App {
                         KeyCode::Space,
                     ..
                 }) => {
-                    self.update(ARead::Next.into(), clipboard);
+                    self.update(ARead::Next.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::End,
                     ..
                 }) => {
-                    self.update(ARead::End.into(), clipboard);
+                    self.update(ARead::End.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadSubtract,
                     ..
                 }) => {
-                    self.update(ARead::Less.into(), clipboard);
+                    self.update(ARead::Less.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::NumpadAdd,
                     ..
                 }) => {
-                    self.update(ARead::More.into(), clipboard);
+                    self.update(ARead::More.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F1 | KeyCode::Numpad0,
                     ..
                 }) => {
-                    self.update(AppState::Settings.into(), clipboard);
+                    self.update(AppState::Settings.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F2 | KeyCode::Numpad1,
                     ..
                 }) => {
-                    self.update(AppState::Library.into(), clipboard);
+                    self.update(AppState::Library.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F3 | KeyCode::Numpad2,
                     ..
                 }) => {
-                    self.update(AppState::Reader.into(), clipboard);
+                    self.update(AppState::Reader.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F4 | KeyCode::Numpad3,
                     ..
                 }) => {
-                    self.update(AppState::Add.into(), clipboard);
+                    self.update(AppState::Add.into());
                 }
                 Keyboard(KeyPressed {
                     key_code: KeyCode::F5 | KeyCode::Numpad4,
                     ..
                 }) => {
-                    self.update(AppState::Info.into(), clipboard);
+                    self.update(AppState::Info.into());
                 }
                 _ => {}
             },

@@ -36,6 +36,7 @@ pub enum EAdd {
     No,
     Title,
     Missing,
+    EmptyClipboard,
 }
 impl Default for EAdd {
     fn default() -> Self { EAdd::No }
@@ -46,6 +47,7 @@ impl EAdd {
             Self::No => "",
             Self::Title => "The book needs a title.",
             Self::Missing => "There's no book.",
+            Self::EmptyClipboard => "There's nothing in the clipboard.",
         }
     }
 }
@@ -200,7 +202,7 @@ impl<'a> SAdd {
     ) -> Command<Message> {
         match message {
             AAdd::Fetch(a) => {
-                let r = data.retriever.clone();
+                let r = data.retriever.clone(); // TODO: Check inpact of this clone()
                 return Command::perform(
                     async move { r.new_book(a).await },
                     move |(title, book)| AAdd::UpdateBook(title, book).into(),
@@ -264,4 +266,7 @@ impl<'a> SAdd {
 }
 impl From<AAdd> for Message {
     fn from(a: AAdd) -> Self { Message::Update(ViewA::AAdd(a)) }
+}
+impl From<EAdd> for Message {
+    fn from(a: EAdd) -> Self { Message::Update(ViewA::AAdd(AAdd::UpdateErr(a))) }
 }

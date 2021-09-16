@@ -17,7 +17,7 @@ log = "0.4.14"
 rand = "0.8.4"
 rayon = "1.5.1"
 select = "0.6.0-alpha.1"
-serde = "1.0.127"
+serde = "1.0.129"
 
 [dependencies.chrono]
 features = ["serde"]
@@ -29,14 +29,14 @@ git = "https://github.com/hecrj/iced"
 git = "https://github.com/hecrj/iced"
 [dependencies.simple_logger]
 default-features = true # colorized
-version = "1.12.1"
+version = "1.13.0"
 [dependencies.reqwest]
 features = ["stream", "cookies", "gzip"]
 version = "0.11.4"
 [dependencies.tokio]
 default-features = false
 features = ["fs", "time", "net", "macros", "rt-multi-thread"]
-version = "1.9.0"
+version = "1.10.1"
 [dependencies.url]
 features = ["serde"]
 version = "2.2.2"

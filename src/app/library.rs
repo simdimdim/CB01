@@ -1,4 +1,4 @@
-use crate::Bimap;
+use crate::{Bimap, Retriever};
 use core::ops::Deref;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -24,6 +24,7 @@ pub struct Library {
     pub titles: Bimap<Label, Id>,
     pub books:  BTreeMap<Id, Book>,
     pub groups: HashMap<String, HashSet<Id>>,
+    pub ret:    Retriever,
 }
 
 impl Library {
@@ -160,6 +161,7 @@ impl Default for Library {
             titles,
             books,
             groups,
+            ret: Retriever::default(),
         }
     }
 }
