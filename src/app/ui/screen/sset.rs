@@ -1,14 +1,14 @@
 use crate::{AppSettings, Message, Theme, ViewA};
 use iced::{
+    alignment::{Horizontal, Vertical},
     button,
-    Align,
+    Alignment,
     Button,
     Checkbox,
     Column,
     Command,
     Container,
     Element,
-    HorizontalAlignment,
     Length,
     Row,
     Space,
@@ -70,21 +70,21 @@ impl SSet {
             &mut self.exitbtn,
             Text::new("Exit")
                 .width(Length::Fill)
-                .horizontal_alignment(HorizontalAlignment::Center),
+                .horizontal_alignment(Horizontal::Center),
         )
         .width(Length::Shrink)
         .min_height(24)
         .on_press(Message::Exit);
 
         let middle = Column::new()
-            .align_items(Align::Start)
+            .align_items(Alignment::Start)
             .width(Length::Shrink)
             .height(Length::Units(settings.height as u16 / 2))
             .spacing(2)
             .push(anywhere)
             .push(fullscreen);
         let main = Row::new()
-            .align_items(Align::End)
+            .align_items(Alignment::End)
             .width(Length::Fill)
             .height(Length::Fill)
             .spacing(2)
@@ -95,14 +95,14 @@ impl SSet {
             .push(
                 Column::new()
                     .height(Length::Fill)
-                    .align_items(Align::Start)
+                    .align_items(Alignment::Start)
                     .push(exit),
             );
         Container::new(main)
             .width(Length::Fill)
             .height(Length::Fill)
-            .align_y(Align::Center)
-            .align_x(Align::End)
+            .align_y(Vertical::Center)
+            .align_x(Horizontal::Right)
             .into()
     }
 

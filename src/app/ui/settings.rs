@@ -24,7 +24,7 @@ pub struct AppSettings {
     pub height:      u32,
 }
 // impl Default for AppSettings {
-//     fn default() -> Self {
+//     fn default() -> Self {           
 //         Self {
 //             should_exit: Default::default(),
 //             fullscreen:  Default::default(),

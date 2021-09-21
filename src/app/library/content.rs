@@ -91,7 +91,11 @@ impl Content {
 
     // tempt, to be adopted by the translator struct/macro
     pub fn view(&self, cols: Option<u16>, dark: bool) -> Element<'_, Message> {
-        use iced::{HorizontalAlignment, Length, Text, VerticalAlignment};
+        use iced::{
+            alignment::{Horizontal, Vertical},
+            Length,
+            Text,
+        };
         //Portion(columns.unwrap_or(1))
         match self {
             Self::Image { pb, .. } => Image::new(Handle::from_path(pb))
@@ -100,13 +104,13 @@ impl Content {
                 .into(),
             Self::Text { text, .. } => Text::new(text.clone())
                 .width(Length::Fill)
-                .vertical_alignment(VerticalAlignment::Top)
-                .horizontal_alignment(HorizontalAlignment::Center)
+                .vertical_alignment(Vertical::Top)
+                .horizontal_alignment(Horizontal::Center)
                 .into(),
             Self::Other { .. } => Text::new("Unable to preview.")
                 .width(Length::Fill)
-                .vertical_alignment(VerticalAlignment::Top)
-                .horizontal_alignment(HorizontalAlignment::Center)
+                .vertical_alignment(Vertical::Top)
+                .horizontal_alignment(Horizontal::Center)
                 .into(),
             Self::Empty => Text::new("There's no content here.")
                 .width(Length::Fill)
@@ -119,8 +123,8 @@ impl Content {
                         a: 1.,
                     }
                 })
-                .vertical_alignment(VerticalAlignment::Top)
-                .horizontal_alignment(HorizontalAlignment::Center)
+                .vertical_alignment(Vertical::Top)
+                .horizontal_alignment(Horizontal::Center)
                 .into(),
         }
     }

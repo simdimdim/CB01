@@ -11,8 +11,9 @@ use crate::{
     ViewA,
 };
 use iced::{
+    alignment::{Horizontal, Vertical},
     button,
-    Align,
+    Alignment,
     Button,
     Checkbox,
     Color,
@@ -25,7 +26,6 @@ use iced::{
     Space,
     Text,
     TextInput,
-    VerticalAlignment,
 };
 use reqwest::Url;
 use std::time::Duration;
@@ -103,7 +103,7 @@ impl<'a> SAdd {
                 b: 0.,
                 a: 0.65,
             })
-            .horizontal_alignment(iced::HorizontalAlignment::Center)
+            .horizontal_alignment(Horizontal::Center)
             .width(Length::Fill);
 
         let title_input = TextInput::new(
@@ -144,8 +144,8 @@ impl<'a> SAdd {
             } else {
                 " Add "
             })
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(iced::HorizontalAlignment::Center),
+            .vertical_alignment(Vertical::Center)
+            .horizontal_alignment(Horizontal::Center),
         )
         .width(Length::Shrink)
         .height(Length::Units(52))
@@ -163,37 +163,37 @@ impl<'a> SAdd {
                 .into(),
         );
         let title = Column::new()
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .width(Length::Fill)
             .push(err)
             .push(
                 Row::new()
-                    .align_items(Align::Start)
+                    .align_items(Alignment::Start)
                     .width(Length::Fill)
                     .push(Space::new(Length::Fill, Length::Shrink))
                     .push(title_input)
                     .push(Space::new(Length::Fill, Length::Shrink)),
             );
         let clickables = Row::new()
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .spacing(10)
             .push(
                 Column::new()
-                    .align_items(Align::Start)
+                    .align_items(Alignment::Start)
                     .push(read)
                     .push(follow),
             )
             .push(addbtn);
         let main = Column::new()
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .spacing(10)
             .push(title)
             .push(clickables);
         Container::new(main)
             .width(Length::Fill)
             .height(Length::Fill)
-            .align_x(Align::Center)
-            .align_y(Align::Center)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
             .into()
     }
 

@@ -11,20 +11,19 @@ use crate::{
     YELLOW,
 };
 use iced::{
+    alignment::{Horizontal, Vertical},
     pick_list,
     text_input,
-    Align,
+    Alignment,
     Column,
     Command,
     Container,
     Element,
-    HorizontalAlignment,
     Length,
     PickList,
     Row,
     Space,
     Text,
-    VerticalAlignment,
 };
 
 #[derive(Debug, Clone)]
@@ -73,7 +72,7 @@ impl SBook {
             .on_submit(ABook::Rename(self.title.clone()).into())
             .size(24);
         let mut titlerow = Row::new()
-            .align_items(Align::Start)
+            .align_items(Alignment::Start)
             .width(Length::Fill)
             .push(Space::new(Length::Fill, Length::Shrink))
             .push(title);
@@ -102,13 +101,14 @@ impl SBook {
             titlerow = titlerow.push(
                 indicator
                     .width(Length::Shrink)
-                    .vertical_alignment(VerticalAlignment::Center)
-                    .horizontal_alignment(HorizontalAlignment::Center)
+                    .vertical_alignment(Vertical::Center)
+                    .horizontal_alignment(Horizontal::Center)
                     .size(28),
             )
         }
         titlerow = titlerow.push(Space::new(Length::Fill, Length::Shrink));
-        let mut main = Column::new().align_items(Align::Center).push(titlerow);
+        let mut main =
+            Column::new().align_items(Alignment::Center).push(titlerow);
         if !list.is_empty() {
             let select = PickList::new(&mut self.pick, list, None, |s| {
                 ABook::View(s).into()
@@ -118,8 +118,8 @@ impl SBook {
         Container::new(main)
             .width(Length::Fill)
             .height(Length::Fill)
-            .align_x(Align::Center)
-            .align_y(Align::Center)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
             .into()
     }
 

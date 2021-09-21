@@ -1,7 +1,8 @@
 use crate::{data::AppData, AppSettings, Content, Label, Message, ViewA};
 use iced::{
+    alignment::{Horizontal, Vertical},
     scrollable,
-    Align,
+    Alignment,
     Command,
     Container,
     Element,
@@ -74,12 +75,12 @@ impl SRead {
                     .max_height(settings.height)
                     .width(Length::Shrink)
                     .height(Length::Shrink)
-                    .align_items(Align::Center),
+                    .align_items(Alignment::Center),
             )
             .width(Length::Fill)
             .height(Length::Fill)
-            .align_x(Align::Center)
-            .align_y(Align::Center)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
             .into();
         } else {
             let mut scroll = Scrollable::new(&mut self.scroll)
@@ -109,8 +110,8 @@ impl SRead {
             return Container::new(scroll)
                 .width(Length::Fill)
                 .height(Length::Fill)
-                .align_x(Align::Center)
-                .align_y(Align::Center)
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center)
                 .into();
         };
     }
