@@ -1,10 +1,24 @@
-use crate::{page::Find, Chapter, Content, Id, Label, Page, Retriever};
+use crate::{
+    page::Find,
+    Chapter,
+    Content,
+    File,
+    Folder,
+    Id,
+    Label,
+    Page,
+    Retriever,
+};
+use bimap::BiBTreeMap;
 use itertools::Either;
 use log::{info, trace, warn};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use serde::{Deserialize as de, Serialize as se};
 use std::{
-    collections::{btree_map::Range, BTreeMap},
+    collections::{btree_map::Range, BTreeMap, BTreeSet},
     ffi::OsStr,
+    hash::{Hash, Hasher},
+    iter::Rev,
     ops::RangeInclusive,
     path::PathBuf,
 };
@@ -17,22 +31,31 @@ pub enum Position {
     First,
     Cover,
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, se, de)]
 pub struct Book {
+    #[serde(skip)]
     pub src:      Option<Page>,
-    pub content:  BTreeMap<u16, Content>,
+    #[serde(skip)]
+    pub files:    BiBTreeMap<usize, File>,
+    pub folder:   Folder,
+    pub content:  BTreeMap<Id, usize>,
     pub chapters: Vec<Chapter>,
     pub cur_ch:   usize,
 }
+
+pub type Pages<'a> = impl DoubleEndedIterator<Item = (Id, &'a File)>;
 impl Book {
     pub fn new(page: Option<Page>) -> Self {
-        let mut content = BTreeMap::new();
+        let mut files = BiBTreeMap::new();
+        files.insert(0, File::default());
         // 0th index content to be used as cover page, to be chagned to default
-        content.insert(0, Content::Empty);
+        let folder = Folder::default();
         // 0th index chapter to be used as bookmark
         Self {
             src: page,
-            content,
+            files,
+            folder,
+            content: BTreeMap::from([(0, 0)]),
             chapters: vec![Chapter::default()],
             cur_ch: 0,
         }
@@ -55,13 +78,7 @@ impl Book {
         cover.set_extension("jpg");
         if cover.exists() {
             trace!("Has cover: {:?}", cover);
-            book.cont_add(
-                vec![Content::Image {
-                    pb:  cover,
-                    src: None,
-                }],
-                Some(Position::Cover),
-            );
+            book.cont_add(vec![cover.into()], Some(Position::Cover));
         }
         let dir = pb.read_dir().expect(FAIL_MSG);
         let mut firstlevel = vec![];
@@ -69,10 +86,7 @@ impl Book {
             if let Some(Some("jpg" | "jpeg" | "png" | "bmp" | "gif" | "tiff")) =
                 d.path().extension().map(OsStr::to_str)
             {
-                acc.push(Content::Image {
-                    pb:  d.path(),
-                    src: None,
-                });
+                acc.push(d.path().into());
             } else if d.path().is_dir() {
                 firstlevel.push(d.path());
             }
@@ -94,10 +108,7 @@ impl Book {
                             (p2 != OsStr::new("cover"), OsStr::to_str(p1))
                         })
                     {
-                        cvec.push(Content::Image {
-                            pb:  item.path(),
-                            src: None,
-                        });
+                        cvec.push(item.path().into());
                     }
                     cvec
                 },
@@ -111,11 +122,13 @@ impl Book {
         (title.into(), book)
     }
 
-    pub fn cover(&self) -> &Content { &self.content[&0] }
+    pub fn cover(&self) -> &File {
+        self.files.get_by_left(&self.content[&0]).unwrap()
+    }
 
     pub fn last(&self) -> &Chapter { &self.chapters[0] }
 
-    pub fn chapter(&self, n: Id) -> Option<Range<'_, Id, Content>> {
+    pub fn chapter(&self, n: Id) -> Option<Pages<'_>> {
         self.valid(n as usize)
             .then(|| self.cont_batch(self.chapters[n as usize].range()))
     }
@@ -180,7 +193,7 @@ impl Book {
         }
     }
 
-    pub fn chap_remove(&mut self, n: usize) -> Option<(Chapter, Vec<Content>)> {
+    pub fn chap_remove(&mut self, n: usize) -> Option<(Chapter, Vec<usize>)> {
         self.valid(n).then(|| {
             let ch = self.chapters.remove(n);
             // let cnt = self
@@ -198,12 +211,16 @@ impl Book {
 
     pub fn chaps_len(&self) -> usize { self.chapters.len() }
 
-    pub fn content(&self, n: &Id) -> Option<&Content> { self.content.get(n) }
+    pub fn content(&self, n: &Id) -> Option<&File> {
+        self.content
+            .get(n)
+            .map(|n| self.files.get_by_left(n).unwrap())
+    }
 
-    pub fn cont_batch(
-        &self, range: RangeInclusive<Id>,
-    ) -> Range<'_, Id, Content> {
-        self.content.range(range)
+    pub fn cont_batch(&self, range: RangeInclusive<Id>) -> Pages<'_> {
+        self.content
+            .range(range)
+            .map(|(&id, f)| (id, self.files.get_by_left(f).unwrap()))
     }
 
     pub fn cont_swap(&mut self, n1: Id, n2: Id) {
@@ -220,7 +237,7 @@ impl Book {
     }
 
     pub fn key_max(
-        rng: Either<&BTreeMap<Id, Content>, Range<'_, Id, Content>>,
+        rng: Either<&BTreeMap<Id, Content>, Range<'_, Id, File>>,
     ) -> Id {
         match rng {
             Either::Left(a) => *a.par_iter().max_by_key(|(&k, _)| k).unwrap().0,
@@ -228,22 +245,22 @@ impl Book {
         }
     }
 
-    pub fn cont_add(&mut self, cont: Vec<Content>, pos: Option<Position>) {
+    pub fn cont_add(&mut self, cont: Vec<File>, pos: Option<Position>) {
         if cont.is_empty() {
             return;
         }
         let len = cont.len() as Id;
         let mut cont = cont.into_iter();
-        let default = (&1u16, &Content::Empty);
+        let default = (&1u16, &File::default());
         let split = match pos.unwrap_or(Position::Last) {
             Position::Last => self.cont_len() as usize,
             Position::AfterCurrent => self.chapters[0].end() as usize + 1,
             Position::BeforeCurrent => 1.max(self.chapters[0].start() as usize),
             Position::First => 1,
             Position::Cover => {
-                self.content
-                    .entry(0)
-                    .and_modify(|e| *e = cont.next().unwrap());
+                self.content.entry(0).and_modify(|e| {
+                    self.files.insert(*e, cont.next().unwrap());
+                });
                 if len == 1 {
                     return;
                 };
@@ -268,31 +285,45 @@ impl Book {
                     .content
                     .par_iter()
                     .max_by_key(|(&k, _)| k)
-                    .unwrap_or(default)
+                    .unwrap_or((
+                        default.0,
+                        self.files.get_by_right(default.1).unwrap(),
+                    ))
                     .0 +
                     1;
                 cont.enumerate().for_each(|(n, content)| {
-                    self.content.insert(l + n as Id, content);
+                    self.content.insert(
+                        l + n as Id,
+                        *self.files.get_by_right(&content).unwrap(),
+                    );
                 });
                 self.content.append(
                     &mut leftovers
                         .iter_mut()
-                        .map(|(k, v)| ((k + len), v.clone()))
-                        .collect::<BTreeMap<Id, Content>>(),
+                        .map(|(k, v)| ((k + len), *v))
+                        .collect::<BTreeMap<Id, usize>>(),
                 );
             }
             1 => {
                 trace!("Only a cover exists.");
                 cont.enumerate().for_each(|(n, content)| {
-                    self.content.insert(n as Id + 1, content);
+                    self.content.insert(
+                        n as Id + 1,
+                        *self.files.get_by_right(&content).unwrap(),
+                    );
                 });
             }
             0 => {
                 let cnt = cont.next().unwrap();
-                self.content.insert(0, cnt.clone());
-                self.content.insert(1, cnt);
+                self.content
+                    .insert(0, *self.files.get_by_right(&cnt).unwrap());
+                self.content
+                    .insert(1, *self.files.get_by_right(&cnt).unwrap());
                 cont.enumerate().for_each(|(n, content)| {
-                    self.content.insert(n as Id + 2, content);
+                    self.content.insert(
+                        n as Id + 2,
+                        *self.files.get_by_right(&content).unwrap(),
+                    );
                 });
             }
             _ => unreachable!(),
@@ -305,9 +336,41 @@ impl Book {
 
     fn valid(&self, n: usize) -> bool { self.chaps_len() > n && n > 0 }
 
-    pub fn save(&self, _pb: PathBuf) { self.content.iter(); }
+    pub fn save(&self, _pb: PathBuf) { let _ = self.content.iter(); }
 
-    pub fn current(&self) -> Range<'_, Id, Content> {
+    pub fn get_file(&self, n: usize) -> &File {
+        self.files.get_by_left(&n).unwrap()
+    }
+
+    pub async fn update_files(&mut self) {
+        // self.files =
+        //     self.content
+        //         .iter()
+        //         .fold(BiBTreeMap::new(), |mut acc, (k, &v)| {
+        //             acc.insert(v, k);
+        //             acc
+        //         });
+        self.files = self
+            .folder
+            .all_files()
+            .await
+            .into_iter()
+            .flat_map(|(i, v)| {
+                v.into_iter().enumerate().fold(vec![], |mut acc, (n, f)| {
+                    acc.push((n * u16::MAX as usize + i, f));
+                    acc
+                })
+            })
+            .collect();
+    }
+
+    pub fn load_files(&mut self) {
+        // self.files.iter().for_each(|(k, v)| {
+        //     self.content.insert(*v, k.clone().into());
+        // });
+    }
+
+    pub fn current(&self) -> Pages<'_> {
         self.cont_batch(self.chapters[0].range())
     }
 
@@ -320,7 +383,7 @@ impl Book {
         self
     }
 
-    pub fn advance_by(&mut self, n: Id) -> Range<'_, Id, Content> {
+    pub fn advance_by(&mut self, n: Id) -> Pages<'_> {
         let adv = self.last_pos().saturating_add(n).min(self.cont_len() as Id);
         if self.chap_cur().contains(&adv) {
             self.chapters[0].offset = adv;
@@ -333,7 +396,7 @@ impl Book {
         self.cont_batch(self.last().range())
     }
 
-    pub fn backtrack_by(&mut self, n: Id) -> Range<'_, Id, Content> {
+    pub fn backtrack_by(&mut self, n: Id) -> Pages<'_> {
         let back = 1.max(self.last_pos().saturating_sub(n));
         if self.chap_cur().contains(&back) {
             self.chapters[0].offset = back;

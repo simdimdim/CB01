@@ -1,23 +1,37 @@
-use crate::{Bimap, Retriever};
+use crate::{AppSettings, Bimap, Message, Retriever, APP_NAME};
 use core::ops::Deref;
+use iced::{
+    alignment::{Horizontal, Vertical},
+    image::Handle,
+    Color,
+    Element,
+    Image,
+    Length,
+    Text,
+};
+use log::{error, info};
+use serde::{Deserialize as de, Serialize as se};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    path::PathBuf,
+    ffi::{OsStr, OsString},
+    path::{Path, PathBuf},
     sync::atomic::{AtomicU16, Ordering},
 };
+use tokio::fs::OpenOptions;
 
 pub mod book;
 pub mod chapter;
 pub mod content;
+pub mod fs;
 
-pub use self::{book::*, chapter::*, content::*};
+pub use self::{book::*, chapter::*, content::*, fs::*};
 
 pub(crate) type Id = u16;
 type IdStaticType = AtomicU16;
 
 pub(super) static ID_COUNTER: IdStaticType = IdStaticType::new(0);
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, se, de)]
 pub struct Label(pub String);
 #[derive(Debug, Clone)]
 pub struct Library {

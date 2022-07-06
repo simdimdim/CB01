@@ -1,4 +1,13 @@
-use crate::{data::AppData, AppSettings, Content, Label, Message, ViewA};
+use crate::{
+    data::AppData,
+    AppSettings,
+    Content,
+    ContentType,
+    File,
+    Label,
+    Message,
+    ViewA,
+};
 use iced::{
     alignment::{Horizontal, Vertical},
     scrollable,
@@ -95,8 +104,10 @@ impl SRead {
                 })
                 .max_width(settings.width);
             for (_, cnt) in pics {
-                if let content @ (Content::Image { .. } | Content::Text { .. }) =
-                    cnt
+                if let content @ File {
+                    filetype: ContentType::Image | ContentType::Text,
+                    ..
+                } = cnt
                 {
                     let el = content.view(Some(2), darkmode);
                     let row = Row::new()
@@ -116,6 +127,7 @@ impl SRead {
         };
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     pub fn update(
         &mut self, data: &mut AppData, settings: &AppSettings, message: ARead,
     ) -> Command<Message> {
@@ -129,7 +141,7 @@ impl SRead {
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
                     if self.scroff >= 1. || !self.single {
-                        book.advance_by(self.per);
+                        let _ = book.advance_by(self.per);
                         self.update(data, settings, ARead::Begin);
                     } else {
                         let to = (self.scroff + (self.per as f32 * 1.5).recip())
@@ -144,7 +156,7 @@ impl SRead {
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
                     if self.scroff <= f32::EPSILON || !self.single {
-                        book.backtrack_by(self.per);
+                        let _ = book.backtrack_by(self.per);
                         self.update(
                             data,
                             settings,
@@ -175,7 +187,7 @@ impl SRead {
                 if let Some(book) =
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
-                    book.chap_set_len(0, Some(self.per)).current();
+                    let _ = book.chap_set_len(0, Some(self.per)).current();
                     trace!("{:?}", book.last());
                 }
             }
@@ -184,7 +196,7 @@ impl SRead {
                 if let Some(book) =
                     self.blabel.as_ref().map(|t| data.library.book_mut(t))
                 {
-                    book.chap_set_len(0, Some(self.per)).current();
+                    let _ = book.chap_set_len(0, Some(self.per)).current();
                     trace!("{:?}", book.last());
                 }
             }

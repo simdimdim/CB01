@@ -1,12 +1,13 @@
-use crate::{Id, Label};
+use crate::{Folder, Id, Label};
 use reqwest::Url;
+use serde::{Deserialize as de, Serialize as se};
 use std::{ops::RangeInclusive, path::PathBuf};
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash, se, de)]
 pub struct Chapter {
     pub offset: Id,
     pub len:    Id,
-    pub path:   Option<PathBuf>,
+    pub path:   Option<Folder>,
     pub src:    Option<Url>,
     pub name:   Option<Label>,
     pub full:   bool,

@@ -1,7 +1,8 @@
 use crate::{Library, APP_NAME};
-use directories_next::{ProjectDirs, UserDirs};
+use directories::{ProjectDirs, UserDirs};
 use iced::{
     clipboard,
+    executor,
     keyboard::Modifiers,
     window::{
         self,
@@ -11,10 +12,10 @@ use iced::{
     Color,
     Command,
     Element,
+    Executor,
     Subscription,
 };
 use iced_native::{
-    executor::Tokio,
     keyboard::{Event::KeyPressed, KeyCode},
     window::Event::{self, CloseRequested},
     Event::{Keyboard, Window},
@@ -72,6 +73,20 @@ impl App {
             screens:  Screens::new(),
         }
     }
+
+    async fn _save_settings(&self) {
+        confy::store(APP_NAME, self.settings.clone())
+            .expect("Failed to save settings.");
+    }
+
+    fn load_settings(&mut self) {
+        self.settings = confy::load(APP_NAME).expect("Failed to load settings.");
+    }
+
+    fn load(&mut self) {
+        self.load_settings();
+        self.data.load_library();
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -85,14 +100,13 @@ pub enum Message {
 }
 
 impl Application for App {
-    type Executor = Tokio;
+    type Executor = executor::Default;
     type Flags = ();
     type Message = Message;
 
     fn new(_flags: ()) -> (App, Command<Message>) {
         let mut app = App::new();
-        let library = Library::default();
-        // TODO: Load library from disc.
+        app.load();
         #[allow(clippy::or_fun_call)]
         let _fonts = UserDirs::new()
             .as_ref()
@@ -101,7 +115,6 @@ impl Application for App {
             .unwrap_or(PathBuf::from("C:\\Windows\\Fonts").as_path());
         let projdirs = ProjectDirs::from("", "", APP_NAME).unwrap();
         let _confdir = projdirs.config_dir();
-        app.data.library = library;
         (app, Command::none())
     }
 

@@ -76,7 +76,7 @@ macro_rules! find {
 impl Retriever {
     pub async fn get(&self, mut p: Page) -> Page {
         if p.req.is_none() {
-            let h = find!(self, &p).headers();
+            let h = find!(self, p).headers();
             let req = self.client.get(p.url.clone()).headers(h).build().unwrap();
             p.prep(req);
         }
@@ -158,12 +158,11 @@ impl Retriever {
     }
 
     pub async fn new_chapter(&self, page: &Page) -> Chapter {
-        let ch = Chapter {
+        Chapter {
             name: Some(self.title(page).await),
             src: Some(page.url.clone()),
             ..Default::default()
-        };
-        ch
+        }
     }
 
     pub async fn chap_dl(&self, mut ch: Chapter) -> Vec<Content> {

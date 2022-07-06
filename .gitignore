@@ -1,3 +1,4 @@
-/target
-Cargo.lock
-/library
+target
+/?[wd]*/target
+*Cargo.lock
+pagepal/library

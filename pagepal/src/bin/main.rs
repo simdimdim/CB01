@@ -1,5 +1,5 @@
 use iced::{window::Settings as WSettings, Application, Settings};
-use pagepal_ui::App;
+use pagepal::App;
 use simple_logger::SimpleLogger;
 
 pub fn main() -> iced::Result {

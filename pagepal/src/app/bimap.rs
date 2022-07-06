@@ -1,7 +1,8 @@
 use crate::{Id, Library};
+use serde::{Deserialize, Serialize};
 use std::{hash::Hash, ops::Deref};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bimap<K: Clone + Hash + Eq, V: Copy + Hash + Eq> {
     pub map: bimap::BiMap<K, V>,
 }
@@ -83,4 +84,9 @@ where
                 acc
             })
     }
+}
+
+impl<K: Clone + Hash + Eq, V: Copy + Hash + Eq> Eq for Bimap<K, V> {}
+impl<K: Clone + Hash + Eq, V: Copy + Hash + Eq> PartialEq for Bimap<K, V> {
+    fn eq(&self, other: &Self) -> bool { self.map == other.map }
 }

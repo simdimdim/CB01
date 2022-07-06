@@ -42,15 +42,13 @@ impl SSet {
             Checkbox::new(self.anywhere, "Paste links from any screen", |a| {
                 ASet::ToggleAnywhere(a).into()
             })
-            .text_color(Theme::from(self.darkmode).into())
+            .style(Theme::from(self.darkmode))
             .width(Length::Shrink)
             .spacing(if self.darkmode { 4 } else { 10 })
             .size(28);
-
         let fullscreen = Checkbox::new(settings.fullscreen, "Fullscreen", |_| {
             Message::FullscreenMode
         })
-        .text_color(Theme::from(self.darkmode).into())
         .width(Length::Shrink)
         .spacing(if self.darkmode { 4 } else { 10 })
         .size(28);
@@ -60,12 +58,11 @@ impl SSet {
             if self.darkmode { "Night" } else { "Day" },
             |a| ASet::ToggleDark(a).into(),
         )
-        .text_color(Theme::from(self.darkmode).into())
+        .style(Theme::from(self.darkmode))
         .width(Length::Shrink)
         .spacing(if self.darkmode { 4 } else { 10 })
         .size(28);
 
-        // .style(Theme::from(self.darkmode));
         let exit = Button::new(
             &mut self.exitbtn,
             Text::new("Exit")
@@ -73,7 +70,7 @@ impl SSet {
                 .horizontal_alignment(Horizontal::Center),
         )
         .width(Length::Shrink)
-        .min_height(24)
+                    //                    .min_height(24)
         .on_press(Message::Exit);
 
         let middle = Column::new()
@@ -94,7 +91,7 @@ impl SSet {
             .push(Space::new(Length::Fill, Length::Fill))
             .push(
                 Column::new()
-                    .height(Length::Fill)
+                    .height(Length::Units(24))
                     .align_items(Alignment::Start)
                     .push(exit),
             );

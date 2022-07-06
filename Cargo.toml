@@ -1,42 +1,7 @@
-# cargo-features = ["edition2021"]
-[package]
-authors = ["simdimdim <simdimdim@gmail.com>"]
-default-run = "main"
-edition = "2018"
-name = "pagepal-ui"
-resolver = "2"
-version = "0.1.0"
+[workspace]
+resolver="2"
 
-[dependencies]
-bimap = "0.6.1"
-directories-next = "2.0.0"
-futures = "0.3.16"
-fxhash = "0.2.1"
-itertools = "0.10.1"
-log = "0.4.14"
-rand = "0.8.4"
-rayon = "1.5.1"
-select = "0.6.0-alpha.1"
-serde = "1.0.129"
-
-[dependencies.chrono]
-features = ["serde"]
-version = "0.4.19"
-[dependencies.iced]
-features = ["tokio", "image", "debug"]
-git = "https://github.com/hecrj/iced"
-[dependencies.iced_native]
-git = "https://github.com/hecrj/iced"
-[dependencies.simple_logger]
-default-features = true # colorized
-version = "1.13.0"
-[dependencies.reqwest]
-features = ["stream", "cookies", "gzip"]
-version = "0.11.4"
-[dependencies.tokio]
-default-features = false
-features = ["fs", "time", "net", "macros", "rt-multi-thread"]
-version = "1.10.1"
-[dependencies.url]
-features = ["serde"]
-version = "2.2.2"
+members = [
+    "pagepal",
+    "fstree"
+]

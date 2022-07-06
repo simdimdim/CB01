@@ -85,7 +85,7 @@ pub enum AAdd {
     ToggleRead(bool),
 }
 
-impl<'a> SAdd {
+impl SAdd {
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -119,20 +119,21 @@ impl<'a> SAdd {
                 .unwrap_or(AAdd::UpdateErr(EAdd::Missing))
                 .into(),
         )
-        .max_width(settings.width)
         .size(32)
-        .width(Length::Units(100.max(self.title.0.len() as u16 * 17)));
+        .width(Length::Units(
+            (settings.width as u16).min(100.max(self.title.0.len() as u16 * 17)),
+        ));
 
         let follow =
             Checkbox::new(self.follow, "Read", |a| AAdd::ToggleFollow(a).into())
-                .text_color(Theme::from(darkmode).into())
+                .style(Theme::from(darkmode))
                 .width(Length::Shrink)
                 .spacing(8)
                 .size(28);
 
         let read =
             Checkbox::new(self.read, "To list", |a| AAdd::ToggleRead(a).into())
-                .text_color(Theme::from(darkmode).into())
+                .style(Theme::from(darkmode))
                 .width(Length::Shrink)
                 .spacing(4)
                 .size(28);
