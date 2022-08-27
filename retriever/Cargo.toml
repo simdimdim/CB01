@@ -1,0 +1,31 @@
+[package]
+authors = ["simdimdim <simdimdim@gmail.com>"]
+default-run = "retriever"
+edition = "2021"
+name = "retriever"
+version = "0.1.0"
+
+[dependencies]
+rayon = "1.5.3"
+futures = "0.3.23"
+log = "0.4.17"
+chrono = "0.4.22"
+static_init = "1.0.3"
+select = "0.6.0-alpha.1"
+
+[dependencies.dashmap]
+features = ["rayon"]
+version = "5.3.4"
+[dependencies.reqwest]
+features = ["stream", "cookies", "gzip"]
+version = "0.11.11"
+[dependencies.simple_logger]
+default-features = true # colorized
+version = "2.3.0"
+[dependencies.tokio]
+default-features = false
+features = ["time", "net", "macros", "rt-multi-thread"]
+version = "1.20.1"
+[dependencies.url]
+features = ["serde"]
+version = "2.2.2"

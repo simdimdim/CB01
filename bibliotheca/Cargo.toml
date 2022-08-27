@@ -1,0 +1,7 @@
+[package]
+authors = ["simdimdim <simdimdim@gmail.com>"]
+edition = "2021"
+name = "bibliotheca"
+version = "0.1.0"
+
+[dependencies]
