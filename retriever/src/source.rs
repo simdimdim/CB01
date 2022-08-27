@@ -40,7 +40,9 @@ impl Source {
     pub async fn next(&self) -> Option<Source> {
         if let Some(n) = self.extractor {
             if let Some(e) = EXTRACTORS.read().get(n) {
-                return e.next(self.contents().await.unwrap().html());
+                return e
+                    .next(self.contents().await.unwrap().html())
+                    .expect("Couldn't get extractor");
             }
         }
         None
