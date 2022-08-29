@@ -1,19 +1,19 @@
-use crate::extractors::{Val, EXTRACTORS};
+// use cached::proc_macro::cached;
 use chrono::{Date, DateTime, Utc};
 use reqwest::{Client, Request};
 use std::str::FromStr;
 use url::{Host, Url};
 
-type Contents = String;
+use crate::extractors::DogHouse;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Source {
     url: Url,
     extractor: Option<usize>, // (extractor type, extractor number)
 }
 #[derive(Debug)]
 pub struct Page {
-    pub contents: Option<Contents>,
+    pub contents: Option<String>,
     pub req: Option<Request>,
     pub last: Option<Date<Utc>>,
 }
@@ -37,22 +37,20 @@ impl Source {
         }
     }
 
-    pub async fn next(&self) -> Option<Source> {
+    pub async fn next(&self, dh: &DogHouse) -> Option<Source> {
         if let Some(n) = self.extractor {
-            if let Some(e) = EXTRACTORS.read().get(n) {
-                return e
-                    .next(self.contents().await.unwrap().html())
-                    .expect("Couldn't get extractor");
-            }
+            dh.next(self.contents().await.unwrap().html(), n, None)
+                .expect("Couldn't get extractor");
         }
         None
     }
 }
 impl Page {
-    async fn get(source: &Source) -> reqwest::Result<(Self, DateTime<Utc>)> {
+    // #[cached]
+    async fn get(source: &Source) -> reqwest::Result<(Page, DateTime<Utc>)> {
         let _res = reqwest::get(source.url().to_owned()).await?;
         Ok((
-            Self {
+            Page {
                 contents: None,
                 req: None,
                 last: None,
@@ -70,7 +68,7 @@ impl Page {
         self
     }
 
-    pub fn html(&self) -> Val { Val("") }
+    pub fn html(&self) -> String { "".to_owned() }
 }
 // use reqwest::header::HeaderMap;
 // headers: Option<HeaderMap>,
@@ -84,6 +82,12 @@ impl Page {
 //         hm
 //     })
 // }
+impl Eq for Page {}
+impl PartialEq for Page {
+    fn eq(&self, other: &Self) -> bool {
+        self.contents == other.contents && self.last == other.last
+    }
+}
 impl Clone for Page {
     fn clone(&self) -> Self {
         Self {
