@@ -6,7 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 rayon = "1.5.3"
-futures = "0.3.23"
+futures = "0.3.24"
 log = "0.4.17"
 
 [dependencies.serde]
