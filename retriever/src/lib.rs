@@ -1,8 +1,10 @@
 #![feature(associated_type_defaults)]
 #![feature(iter_advance_by)]
 
-pub mod hounds;
+pub mod extractor;
 pub mod page;
+pub mod presets;
+pub mod retriever;
 
 use page::ContentType;
 

@@ -1,10 +1,8 @@
-use crate::page::Page;
+use crate::{extractor::Manifest, page::Page};
 use core::fmt::Debug;
 use dashmap::DashMap;
 use reqwest::{header::HeaderMap, Client};
 use url::Host;
-
-pub mod presets;
 
 #[macro_export]
 macro_rules! prepare {
@@ -19,47 +17,12 @@ pub type TextType = Vec<String>;
 pub type ImagesType = Vec<Page>;
 pub type LinksType = Vec<Page>;
 
-#[derive(Debug, Clone, Default)]
-pub struct HoundPack {
-    name: String,
-    title: usize,
-    pred: usize,
-    split: usize,
-    next: usize,
-    text: usize,
-    images: usize,
-    links: usize,
-    index: usize,
-}
-
-impl HoundPack {
-    pub fn rename<T: Into<String>>(&mut self, name: T) { self.name = name.into(); }
-
-    pub fn name(&self) -> &String { &self.name }
-
-    pub fn title(&self) -> usize { self.title }
-
-    pub fn pred(&self) -> usize { self.pred }
-
-    pub fn split(&self) -> usize { self.split }
-
-    pub fn next(&self) -> usize { self.next }
-
-    pub fn text(&self) -> usize { self.text }
-
-    pub fn images(&self) -> usize { self.images }
-
-    pub fn links(&self) -> usize { self.links }
-
-    pub fn index(&self) -> usize { self.index }
-}
-
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Retriever {
     referers: DashMap<Host, HeaderMap>,
     targets: DashMap<Host, Page>,
-    reigster: Vec<HoundPack>,
+    manifests: Vec<Manifest>,
     client: Client,
 }
 
@@ -69,7 +32,7 @@ impl Retriever {
         Self {
             referers: DashMap::new(),
             targets: DashMap::new(),
-            reigster: vec![],
+            manifests: vec![],
             client: Client::default(),
             ..Default::default()
         }
@@ -78,8 +41,8 @@ impl Retriever {
     //TODO: extract all data from a Page at the same time
 
     pub fn add_extractor(&mut self, from: Option<usize>) -> bool {
-        if let Some(r) = self.reigster.get(from.unwrap_or(0)) {
-            self.reigster.insert(self.reigster.len(), r.clone());
+        if let Some(r) = self.manifests.get(from.unwrap_or(0)) {
+            self.manifests.insert(self.manifests.len(), r.clone());
             return true;
         }
         false
@@ -93,8 +56,8 @@ impl Default for Retriever {
     fn default() -> Self {
         let referers = DashMap::new();
         let targets = DashMap::new();
-        let hounds = vec![{
-            let mut h = HoundPack::default();
+        let manifests = vec![{
+            let mut h = Manifest::default();
             h.rename("Default");
             h
         }];
@@ -102,7 +65,7 @@ impl Default for Retriever {
         Self {
             referers,
             targets,
-            reigster: hounds,
+            manifests,
             client,
         }
     }
