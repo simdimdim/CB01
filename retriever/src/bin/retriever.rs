@@ -1,13 +1,15 @@
 use clap::Parser;
+use epub_builder::{EpubBuilder, EpubContent, ZipLibrary};
 use futures::future::join_all;
 use log::{debug, info, trace};
 use reqwest::Url;
 use retriever::{
     extractor::Extractor,
-    page::{fetch, fetch_one, ContentType, Page, SepStr},
-    presets::{realm_images, realm_next},
+    page::{Page, SepStr},
+    presets::{realm_images, realm_index, realm_next},
+    retriever::Retriever,
 };
-use std::{fmt::Debug, io, path::PathBuf, time::Duration};
+use std::{ffi::OsString, fmt::Debug, fs, fs::OpenOptions, io, path::PathBuf, time::Duration};
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
@@ -31,21 +33,24 @@ pub struct Opt {
     )]
     /// Look for text
     novel: bool,
-    #[clap(long, group = "text", display_order(6))]
-    /// Use RealmScans specific extractors
-    realm: bool,
-    #[clap(min_values(1), max_values(1))]
-    /// url to manga or novels
-    url: Url,
-    #[clap(short, long, value_parser, display_order(3), next_display_order = "3")]
+    #[clap(short, long, value_parser, display_order(3))]
     /// Output directory
     output_dir: Option<PathBuf>,
+    #[clap(short, long, value_parser, default_value = "400", display_order(4))]
+    /// Delay interval between page requests (ms)
+    delay: u64,
     #[clap(short, long, value_parser, display_order(5))]
     /// String contained in the next page button
     next: Option<String>,
-    #[clap(short, long, value_parser, default_value = "400", display_order(4))]
-    /// Sleep interval between page requests (ms)
-    sleep: u64,
+    #[clap(min_values(1), max_values(1))]
+    /// url to manga or novels
+    url: Url,
+    #[clap(long, group = "text", display_order(6))]
+    /// Use RealmScans specific extractors
+    realm: bool,
+    #[clap(short, long, value_parser, conflicts_with = "image", display_order(7))]
+    /// String contained in the next page button
+    epub: bool,
 }
 
 #[tokio::main]
@@ -55,56 +60,119 @@ async fn main() -> io::Result<()> {
 
     let args = Opt::parse();
     let mut extractor = Extractor::default();
+    let ret = Retriever::default();
     if args.realm {
         extractor.set_next(Some(realm_next));
+        extractor.set_index(Some(realm_index));
         extractor.set_images(Some(realm_images));
-        debug!("jsbs is enabled");
     }
     if let Some(dir) = &args.output_dir {
         std::fs::create_dir_all(dir).expect("Failed to create path to output directory.");
     }
     let sep = if let Some(next) = args.next {
-        info!("Set string to look for next chapter link to: \"{}\"", &next);
+        info!("Next chapter button string: '{}'", &next);
         let s: &'static str = Box::leak(next.into_boxed_str());
         SepStr::from(s)
     } else {
         Default::default()
     };
-    info!("delay: {}", &args.sleep);
+    info!("Delay: {}", &args.delay);
     info!("Looking for {}", if args.image { "images" } else { "text" });
-    let mut content = vec![];
-    let mut page: Option<Page> = args.url.try_into().ok();
-    while let Some(mut p) = page.as_mut() {
-        trace!("Delayed: {}", &args.sleep);
-        p.set_next(sep);
-        fetch_one(p, &extractor, args.image).await;
-        if let Some(cnt) = p.content.data.take() {
-            let path = args.output_dir.clone().unwrap();
-            match cnt {
-                ContentType::Text(_, _) => {
-                    let final_path = path.clone().join(p.chapter());
-                    p.content.data = Some(cnt);
-                    p.content.save(final_path).await.unwrap();
-                }
-                images @ ContentType::Images(_, _) => {
-                    if let Some(mut res) = images.to_pages() {
-                        fetch(&mut res, &extractor, args.image).await;
-                        join_all(res.iter().map(|c| async {
-                            let final_path = path.clone().join(p.chapter());
-
-                            c.content.save(final_path).await
-                        }))
-                        .await;
-                        content.push(res);
+    let mut page: Page = args.url.try_into().unwrap();
+    page.set_next(sep);
+    let mut all_imgs = vec![];
+    if let Ok(index) = ret.fetch_index(&mut page, args.image).await {
+        if let Ok(mut links) = ret.fetch_links(index, args.image).await {
+            if args.image {
+                for mut link in &mut links {
+                    tokio::time::sleep(Duration::from_millis(args.delay)).await;
+                    if let Some(images) = ret.fetch_content(&mut link, args.image).await {
+                        tokio::time::sleep(Duration::from_millis(args.delay)).await;
+                        trace!("Gathered {} images", images.len());
+                        all_imgs.extend(images.into_iter());
                     }
                 }
-                _ => {}
-            };
-        };
-        page = p.next();
-        debug!("Next page: {:?}", &page);
-        tokio::time::sleep(Duration::from_millis(args.sleep)).await;
+            } else if let Some(images) = ret.fetch_content(links, args.image).await {
+                tokio::time::sleep(Duration::from_millis(args.delay)).await;
+                debug!("Gathered {} chapters", images.len());
+                all_imgs.extend(images.into_iter());
+            }
+        }
     }
-    debug!("Gathered {:?} pages", content.len());
+    let save_to = args.output_dir.unwrap_or_else(|| PathBuf::from("."));
+    join_all(all_imgs.chunks_mut(5).map(|a| async {
+        for p in a {
+            ret.fetch(p, &extractor, args.image).await;
+            p.save(save_to.as_path()).await.unwrap();
+            tokio::time::sleep(Duration::from_millis(args.delay)).await;
+        }
+    }))
+    .await;
+    debug!("Total {} pages", all_imgs.len());
+
+    if args.epub {
+        gen_epub_for(save_to);
+    }
     Ok(())
+}
+
+pub fn gen_epub_for(pb: PathBuf) {
+    if let Ok(dir) = fs::read_dir(&pb) {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&pb.join("book.epub"))
+            .unwrap();
+        let mut book = EpubBuilder::new(ZipLibrary::new().unwrap()).unwrap();
+        book.metadata("author", " ")
+            .unwrap()
+            .metadata("title", " ")
+            .unwrap()
+            .metadata("lang", "en-GB")
+            .unwrap()
+            .inline_toc();
+        let mut img_tags = vec![];
+        dir.flatten().for_each(|f| {
+            if f.path().extension().unwrap() != "epub" {
+                let image = OpenOptions::new().read(true).open(&f.path()).unwrap();
+                let mut img_path = OsString::from(""); //
+                img_path.push(f.path().file_name().unwrap());
+                debug!("{:?}", &img_path);
+                book.add_resource(
+                    &img_path,
+                    image,
+                    format!("image/{}", f.path().extension().unwrap().to_str().unwrap()),
+                )
+                .unwrap();
+                img_tags.push(format!(
+                    r##"<img src="{0}" alt="{0}" />"##,
+                    img_path.to_str().unwrap()
+                ));
+            }
+        });
+        book.add_content(EpubContent::new(
+            "Content.xhtml",
+            format!(
+                r##"
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <title>Book</title>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div>
+      {}
+    </div>
+  </body>
+</html>"##,
+                {
+                    img_tags.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    img_tags.join("\n")
+                }
+            )
+            .as_bytes(),
+        ))
+        .unwrap();
+        book.generate(&mut file).unwrap();
+    }
 }

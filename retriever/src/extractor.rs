@@ -24,7 +24,10 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn rename<T: Into<String>>(&mut self, name: T) { self.name = name.into(); }
+    pub fn rename<T: Into<String>>(&mut self, name: T) -> &mut Self {
+        self.name = name.into();
+        self
+    }
 
     pub fn name(&self) -> &String { &self.name }
 

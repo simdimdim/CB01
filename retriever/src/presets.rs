@@ -7,7 +7,8 @@ use crate::{
     Text,
     Title,
 };
-use select::predicate::{Any, Child, Descendant, Name, Or, Text as Txt};
+use log::debug;
+use select::predicate::{And, Any, Attr, Child, Descendant, Name, Or, Text as Txt};
 
 pub fn default_title(page: &Page) -> Title {
     page.doc().map(|d| {
@@ -40,16 +41,25 @@ pub fn default_next(page: &Page) -> Next {
 }
 pub fn default_index(page: &Page) -> Index {
     let _ = page.doc(); //.map(|d| d);
-    None
+    // Some(String::from("https://manganato.com/manga-ig985463"))
+    let mut index = page.url.as_str().split('/');
+    index.advance_back_by(3).unwrap();
+    index.collect::<Vec<_>>().join("/").parse().ok()
 }
 pub fn default_links(page: &Page) -> Links {
+    // let c =
+    debug!("a: {:?}", &page.url.as_str());
+    // debug!("a: {:?}", &page.html);
     page.doc().map(|d| {
         d.select(Descendant(
             Name("div"),
             Or(Name("p"), Or(Name("table"), Name("ul"))),
         ))
         .map(|a| a.select(Name("a")).into_selection())
-        .max_by(|a, b| a.len().cmp(&b.len()))
+        .max_by(|a, b| {
+            // debug!("a: {:?} b: {:?}", &a.len(), &b.len());
+            a.len().cmp(&b.len())
+        })
         .unwrap()
         .iter()
         .filter_map(|a| a.attr("href"))
@@ -57,6 +67,9 @@ pub fn default_links(page: &Page) -> Links {
         .map(Into::into)
         .collect()
     })
+    // ;
+    // debug!("{:?}", &c);
+    // c
 }
 pub fn default_text(page: &Page) -> Text {
     page.doc().map(|d| {
@@ -106,28 +119,39 @@ pub fn default_images(page: &Page) -> Images {
             d.select(Child(Name("div"), Name("img")))
                 .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
                 .max_by(|a, b| a.len().cmp(&b.len()))
-                .unwrap()
-                .iter()
-                .map(|a| {
-                    if let Some(n) = a.attr("src") {
-                        n.to_owned()
-                    } else {
-                        a.attr("data-src")
-                            .expect("couldn't find image data-src")
-                            .to_owned()
-                    }
+                .map(|i| {
+                    i.iter()
+                        .map(|a| {
+                            if let Some(n) = a.attr("src") {
+                                n.to_owned()
+                            } else {
+                                a.attr("data-src")
+                                    .expect("couldn't find image data-src")
+                                    .to_owned()
+                            }
+                        })
+                        .collect()
                 })
-                .collect(),
+                .unwrap_or_default(),
             Some(page.origin()),
         )
     })
 }
+
 pub fn realm_next(page: &Page) -> Next {
     page.html.as_ref().and_then(|d| {
         d.split('"')
             .skip_while(|s| !s.contains("nextUrl"))
             .nth(2)
             .map(|s| s.replace('\\', ""))
+    })
+}
+pub fn realm_index(page: &Page) -> Index {
+    page.doc().and_then(|d| {
+        d.select(And(Name("a"), Attr("href", ())))
+            .filter(|a| a.parent().unwrap().text().contains("All chapters are in "))
+            .map(|a| a.attr("href").unwrap().to_string())
+            .next()
     })
 }
 pub fn realm_images(page: &Page) -> Images {

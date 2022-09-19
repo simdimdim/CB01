@@ -1,13 +1,20 @@
 use crate::{extractor::Extractor, Index, Links, Next, Title};
-use futures::future::join_all;
-use log::{info, trace};
+use log::{debug, info, trace};
 use reqwest::{
     header::{HeaderValue, REFERER},
     Client,
     Url,
 };
 use select::document::Document;
-use std::{borrow::Cow, convert::TryFrom, fmt::Debug, ops::Deref, path::PathBuf, str::FromStr};
+use std::{
+    borrow::Cow,
+    convert::TryFrom,
+    fmt::Debug,
+    ops::Deref,
+    path::Path,
+    str::FromStr,
+    time::Duration,
+};
 use time::OffsetDateTime;
 use tokio::{fs::write, io};
 use url::ParseError;
@@ -29,7 +36,7 @@ pub enum ContentType {
     Image(Vec<u8>),
     Chapter(Vec<ContentType>),
     Images(Vec<String>, Option<String>),
-    Chapters(Vec<String>),
+    Chapters(Vec<String>, Option<String>),
     #[default]
     Empty,
 }
@@ -54,10 +61,9 @@ impl Page {
     }
 
     pub async fn visit(
-        &mut self, client: Option<Client>, extractor: &Extractor, visual: bool,
+        &mut self, client: Client, extractor: &Extractor, visual: bool,
     ) -> &mut Self {
         info!("Visited: {}", self.url.as_str());
-        let client = client.unwrap_or_else(Client::new);
         let req = client
             .get(self.url.as_ref())
             .header(
@@ -69,12 +75,23 @@ impl Page {
             .build()
             .unwrap_or_else(|_| panic!("Failed to build request for: {}", &self.url));
         let page = client
-            .execute(req)
+            .execute(req.try_clone().unwrap())
             .await
             .expect("Failed to unwrap response");
         self.last = Some(OffsetDateTime::now_utc());
         if let Some(ContentType::Image(ref mut data)) = self.content.data {
-            *data = page.bytes().await.unwrap().to_vec();
+            let mut bytes = page.bytes().await;
+            // Retry once
+            if bytes.is_err() {
+                tokio::time::sleep(Duration::from_millis(2000)).await;
+                let page = client
+                    .execute(req)
+                    .await
+                    .expect("Failed to unwrap response");
+                self.last = Some(OffsetDateTime::now_utc());
+                bytes = page.bytes().await;
+            }
+            *data = bytes.unwrap().to_vec();
             trace!("Early return, Image");
             return self;
         };
@@ -87,7 +104,8 @@ impl Page {
         self.content.next = extractor.get_next(self).await;
         trace!("next: {:?}", &self.content.next);
         self.content.links = extractor.get_links(self).await;
-        trace!("links: {:?}", &self.content.links);
+        trace!("links: {:?}", &self.content.links.as_ref().map(|l| l.len()));
+        trace!("links: {:?}", &self.content.links.as_ref().map(|l| &l[..2]));
         self.content.data = if visual {
             extractor.get_images(self).await
         } else {
@@ -109,13 +127,16 @@ impl Page {
     pub fn chapter(&self) -> &str {
         //TODO name from url/title else path()
         //TODO symmetric difference/intersection with next page url
-        let mut res = self.url.path_segments().unwrap();
-        if self.url.path().ends_with('/') {
-            res.advance_back_by(1).unwrap();
-        }
-        let last = res.last().unwrap();
-        trace!("url final segment is: {:?}", &last);
-        last
+        let res = self
+            .url
+            .path_segments()
+            .unwrap()
+            .rev()
+            .skip_while(|s| s.is_empty())
+            .nth(1)
+            .unwrap();
+        debug!("url final segment is: {:?}", &res);
+        res
     }
 
     pub fn path(&self) -> &str { self.url.path() }
@@ -126,13 +147,7 @@ impl Page {
 
     pub fn domain(&self) -> Option<&str> { self.url.domain() }
 
-    pub fn with_host(mut self, host: String) -> Self {
-        self.url = (host + self.url.as_str()).parse().unwrap();
-        trace!("You're here: {:?}", &self.url);
-        self
-    }
-
-    pub fn host(&self) -> Option<&str> { self.url.host_str() }
+    pub fn host(&self) -> Option<String> { self.url.host_str().map(str::to_owned) }
 
     pub fn get_next(&self) -> &str { self.next_by.deref() }
 
@@ -144,6 +159,11 @@ impl Page {
     pub fn split(&self) -> String { (self.split_by)() }
 
     pub fn content(&self) -> &Content { &self.content }
+
+    pub async fn save(&self, pb: &Path) -> io::Result<()> {
+        let final_path = pb.join(self.chapter());
+        self.content.save(&final_path).await
+    }
 
     pub fn empty(&mut self) { self.html = None; }
 }
@@ -161,30 +181,55 @@ impl Content {
 
     pub fn links(&self) -> &Links { &self.links }
 
-    pub async fn save(&self, pb: PathBuf) -> io::Result<()> {
+    pub async fn save(&self, pb: &Path) -> io::Result<()> {
         let name_from = |cnt: &[u8]| -> String {
             let res = self
                 .name
                 .as_ref()
                 .unwrap_or(&Uuid::new_v5(&Uuid::NAMESPACE_OID, cnt).to_string())
                 .to_owned();
-            trace!("generated new name: {}", res);
+            debug!("generated new name: {}", res);
             res
         };
         trace!("data is: {:?}", &self.data);
         match &self.data {
             Some(data @ ContentType::Text(..)) => {
-                trace!("path is: {:?}", &pb);
+                let mut z = pb.to_path_buf();
+                z.pop();
+                trace!("path is: {:?}", &z);
                 let contents = data.as_data();
+                z = z.join(name_from(&contents));
                 // let p = pb.join(name_from(&contents[..]));
                 // trace!("final text path: {:?}", p);
-                write(pb, contents).await?;
+                write(z, contents).await?;
             }
             Some(ContentType::Image(data)) => {
-                std::fs::create_dir_all(&pb).expect("Failed to create path to output directory.");
-                let p = pb.join(name_from(data));
-                trace!("final image path: {:?}", p);
-                write(p, data).await?;
+                let mut z = pb.to_path_buf();
+                z.pop();
+                std::fs::create_dir_all(&z).expect("Failed to create path to output directory.");
+                let file = name_from(data);
+                let mut filename = pb.file_name().unwrap_or_default().to_os_string();
+                let f = file
+                    .to_ascii_lowercase()
+                    .chars()
+                    .zip(
+                        filename
+                            .clone()
+                            .into_string()
+                            .unwrap_or_default()
+                            .to_ascii_lowercase()
+                            .chars()
+                            .chain(std::iter::repeat('*')),
+                    )
+                    .filter(|(a, b)| a != b)
+                    .map(|(a, _)| a)
+                    .collect::<String>()
+                    .replace('-', "_");
+                filename.push(&f);
+                let mut pb = pb.to_path_buf();
+                pb.set_file_name(filename);
+                debug!("final image path: {:?}", &pb);
+                write(pb, data).await?;
             }
             _ => (),
             // Some(ContentType::Images(data, _)) => {
@@ -221,15 +266,26 @@ impl ContentType {
         }
     }
 
-    pub fn to_pages(self) -> Option<Vec<Page>> {
-        fn convert(input: Vec<String>) -> Vec<Page> {
-            input.into_iter().filter_map(|p| p.parse().ok()).collect()
+    pub fn to_pages(&self) -> Option<Vec<Page>> {
+        fn convert(input: &[String], host: &Option<String>) -> Vec<Page> {
+            debug!("host was: {:?}", host);
+            input
+                .iter()
+                .zip(std::iter::repeat(host))
+                .filter_map(|(p, h)| {
+                    (h.as_ref()
+                        .map(|s| s.clone() + p)
+                        .unwrap_or_else(|| p.clone()))
+                    .parse()
+                    .ok()
+                })
+                .collect()
         }
         match self {
             ContentType::Images(urls, referer) => {
                 let referer = referer.as_ref().map(|r| r.try_into().unwrap());
                 Some(
-                    convert(urls)
+                    convert(urls, &None)
                         .into_iter()
                         .map(|mut p| {
                             p.referer = referer.clone();
@@ -243,7 +299,7 @@ impl ContentType {
                         .collect(),
                 )
             }
-            ContentType::Chapters(urls) => Some(convert(urls)),
+            ContentType::Chapters(urls, host) => Some(convert(urls, host)),
             _ => None,
         }
     }
@@ -372,21 +428,4 @@ impl Deref for SepStr {
             SepStr::Custom(s) => s,
         }
     }
-}
-
-pub async fn fetch(pages: &mut [Page], extractor: &Extractor, visual: bool) {
-    join_all(pages.iter_mut().map(|p| async {
-        fetch_one(p, extractor, visual).await;
-        p
-    }))
-    .await;
-}
-pub async fn fetch_one(page: &mut Page, extractor: &Extractor, visual: bool) {
-    if let Some(time) = page.last {
-        if time.minute() < 1 {
-            info!("Visited recently");
-            return;
-        }
-    }
-    page.visit(None, extractor, visual).await;
 }
