@@ -161,7 +161,8 @@ impl Page {
     pub fn content(&self) -> &Content { &self.content }
 
     pub async fn save(&self, pb: &Path) -> io::Result<()> {
-        let final_path = pb.join(self.chapter());
+        let final_path = pb.join(self.filename().as_deref().unwrap_or_else(|| self.chapter()));
+        debug!("base path {:?}", &final_path);
         self.content.save(&final_path).await
     }
 
@@ -194,11 +195,10 @@ impl Content {
         trace!("data is: {:?}", &self.data);
         match &self.data {
             Some(data @ ContentType::Text(..)) => {
-                let mut z = pb.to_path_buf();
-                z.pop();
+                let z = pb.to_path_buf();
                 trace!("path is: {:?}", &z);
                 let contents = data.as_data();
-                z = z.join(name_from(&contents));
+                // z = z.join(name_from(&contents));
                 // let p = pb.join(name_from(&contents[..]));
                 // trace!("final text path: {:?}", p);
                 write(z, contents).await?;
@@ -273,11 +273,16 @@ impl ContentType {
                 .iter()
                 .zip(std::iter::repeat(host))
                 .filter_map(|(p, h)| {
-                    (h.as_ref()
+                    let pa = (h
+                        .as_ref()
                         .map(|s| s.clone() + p)
                         .unwrap_or_else(|| p.clone()))
                     .parse()
-                    .ok()
+                    .ok();
+                    pa.map(|mut q: Page| {
+                        q.content.name = q.filename();
+                        q
+                    })
                 })
                 .collect()
         }

@@ -7,6 +7,7 @@ use crate::{
     Text,
     Title,
 };
+#[allow(unused_imports)]
 use log::debug;
 use select::predicate::{And, Any, Attr, Child, Descendant, Name, Or, Text as Txt};
 
@@ -48,7 +49,7 @@ pub fn default_index(page: &Page) -> Index {
 }
 pub fn default_links(page: &Page) -> Links {
     // let c =
-    debug!("a: {:?}", &page.url.as_str());
+    // debug!("a: {:?}", &page.url.as_str());
     // debug!("a: {:?}", &page.html);
     page.doc().map(|d| {
         d.select(Descendant(

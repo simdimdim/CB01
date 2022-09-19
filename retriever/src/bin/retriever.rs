@@ -49,7 +49,7 @@ pub struct Opt {
     /// Use RealmScans specific extractors
     realm: bool,
     #[clap(short, long, value_parser, conflicts_with = "image", display_order(7))]
-    /// String contained in the next page button
+    /// Generate epub
     epub: bool,
 }
 
@@ -99,7 +99,7 @@ async fn main() -> io::Result<()> {
             }
         }
     }
-    let save_to = args.output_dir.unwrap_or_else(|| PathBuf::from("."));
+    let save_to = args.output_dir.unwrap_or_else(|| PathBuf::from("./"));
     join_all(all_imgs.chunks_mut(5).map(|a| async {
         for p in a {
             ret.fetch(p, &extractor, args.image).await;
