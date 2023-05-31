@@ -9,6 +9,7 @@ use futures::future::join_all;
 use log::{debug, info, trace};
 use reqwest::{redirect::Policy, Client};
 use std::time::Duration;
+use tokio::time::sleep;
 use url::Host;
 
 pub type TitleType = String;
@@ -45,10 +46,10 @@ impl Retriever {
         &self, pages: &mut [Page], extractor: &Extractor, visual: bool, delay: u64,
     ) {
         join_all(pages.chunks_mut(10).map(|p| async {
-            tokio::time::sleep(Duration::from_millis(delay)).await;
+            sleep(Duration::from_millis(delay)).await;
             for i in p {
                 self.fetch(i, extractor, visual).await;
-                tokio::time::sleep(Duration::from_millis(20)).await;
+                sleep(Duration::from_millis(20)).await;
             }
         }))
         .await;
@@ -101,9 +102,9 @@ impl Retriever {
             .content
             .links()
             .as_ref()
-            .map(|v| ContentType::Chapters(v.to_owned(), Some(page.origin()))); // FIXME: don't clone
+            .map(|v| ContentType::Chapters(v.to_owned())); // FIXME: don't clone
         if cnt.is_some() {
-            debug!("{:?}", cnt);
+            trace!("{:?}", cnt);
             page.content.data = cnt;
             return Ok(page);
         }
@@ -113,10 +114,9 @@ impl Retriever {
     pub async fn fetch_content(&self, page: &mut Page, kind: bool) -> Option<Vec<Page>> {
         self.check_page(page, kind).await;
         let out = page.content.data.as_ref().and_then(|p| {
-            debug!("{:?}", &p.to_pages());
+            trace!("to_pages: {:?}", &p.to_pages());
             p.to_pages()
         });
-
         out
     }
 

@@ -14,7 +14,7 @@ use select::predicate::{And, Any, Attr, Child, Descendant, Name, Or, Text as Txt
 pub fn default_title(page: &Page) -> Title {
     page.doc().map(|d| {
         let title = d
-            .select(Name("title"))
+            .find(Name("title"))
             .into_selection()
             .first()
             .unwrap()
@@ -34,7 +34,7 @@ pub fn default_title(page: &Page) -> Title {
 }
 pub fn default_next(page: &Page) -> Next {
     page.doc().and_then(|d| {
-        d.select(Child(Name("a"), Txt))
+        d.find(Child(Name("a"), Txt))
             .filter(|a| a.text().contains(page.get_next()))
             .map(|a| a.parent().unwrap().attr("href").unwrap().to_string())
             .next()
@@ -52,11 +52,11 @@ pub fn default_links(page: &Page) -> Links {
     // debug!("a: {:?}", &page.url.as_str());
     // debug!("a: {:?}", &page.html);
     page.doc().map(|d| {
-        d.select(Descendant(
+        d.find(Descendant(
             Name("div"),
             Or(Name("p"), Or(Name("table"), Name("ul"))),
         ))
-        .map(|a| a.select(Name("a")).into_selection())
+        .map(|a| a.find(Name("a")).into_selection())
         .max_by(|a, b| {
             // debug!("a: {:?} b: {:?}", &a.len(), &b.len());
             a.len().cmp(&b.len())
@@ -65,7 +65,13 @@ pub fn default_links(page: &Page) -> Links {
         .iter()
         .filter_map(|a| a.attr("href"))
         .map(|a| a.to_string())
-        .map(Into::into)
+        .map(|p| {
+            if Page::try_from(&p).is_ok() {
+                p
+            } else {
+                page.origin() + &p
+            }
+        })
         .collect()
     })
     // ;
@@ -76,25 +82,25 @@ pub fn default_text(page: &Page) -> Text {
     page.doc().map(|d| {
         // debug!(
         //     "{:?}",
-        //     d.select(Or(Descendant(Any, Name("p")), Descendant(Any, Name("br"))))
+        //     d.find(Or(Descendant(Any, Name("p")), Descendant(Any, Name("br"))))
         //         .map(|a| a.parent().unwrap().children().into_selection())
         //         .max_by(|a, b| {
         //             debug!("len a: {:?}, len b: {:?}", a.len(), b.len());
         //             a.len().cmp(&b.len())
         //         })
         //         .unwrap()
-        //         .select(Txt)
+        //         .find(Txt)
         //         .iter()
         //         .map(|a| a.text())
         //         .collect::<Vec<_>>()
         // );
         ContentType::Text(
-            d.select(Or(Descendant(Any, Name("p")), Descendant(Any, Name("br"))))
+            d.find(Or(Descendant(Any, Name("p")), Descendant(Any, Name("br"))))
                 .map(|a| a.parent().unwrap().children().into_selection())
                 .max_by(|a, b| a.len().cmp(&b.len()))
                 .unwrap()
                 .parent()
-                .select(Txt)
+                .find(Txt)
                 .iter()
                 .map(|a| a.text())
                 .collect(),
@@ -102,11 +108,11 @@ pub fn default_text(page: &Page) -> Text {
         )
         // old
         // ContentType::Text(
-        //     d.select(Child(Name("div"), Name("p")))
+        //     d.find(Child(Name("div"), Name("p")))
         //         .map(|a| a.parent().unwrap().children().into_selection())
         //         .max_by(|a, b| a.len().cmp(&b.len()))
         //         .unwrap()
-        //         .select(Txt)
+        //         .find(Txt)
         //         .iter()
         //         .map(|a| a.text())
         //         .collect(),
@@ -117,8 +123,8 @@ pub fn default_text(page: &Page) -> Text {
 pub fn default_images(page: &Page) -> Images {
     page.doc().map(|d| {
         ContentType::Images(
-            d.select(Child(Name("div"), Name("img")))
-                .map(|a| a.parent().unwrap().select(Name("img")).into_selection())
+            d.find(Child(Name("div"), Name("img")))
+                .map(|a| a.parent().unwrap().find(Name("img")).into_selection())
                 .max_by(|a, b| a.len().cmp(&b.len()))
                 .map(|i| {
                     i.iter()
@@ -149,7 +155,7 @@ pub fn realm_next(page: &Page) -> Next {
 }
 pub fn realm_index(page: &Page) -> Index {
     page.doc().and_then(|d| {
-        d.select(And(Name("a"), Attr("href", ())))
+        d.find(And(Name("a"), Attr("href", ())))
             .filter(|a| a.parent().unwrap().text().contains("All chapters are in "))
             .map(|a| a.attr("href").unwrap().to_string())
             .next()

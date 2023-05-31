@@ -42,7 +42,7 @@ pub struct Opt {
     #[clap(short, long, value_parser, display_order(5))]
     /// String contained in the next page button
     next: Option<String>,
-    #[clap(min_values(1), max_values(1))]
+    #[clap(num_args(1))]
     /// url to manga or novels
     url: Url,
     #[clap(long, group = "text", display_order(6))]
@@ -81,34 +81,48 @@ async fn main() -> io::Result<()> {
     let mut page: Page = args.url.try_into().unwrap();
     page.set_next(sep);
     let mut all_imgs = vec![];
-    if let Ok(index) = ret.fetch_index(&mut page, args.image).await {
-        if let Ok(mut links) = ret.fetch_links(index, args.image).await {
+    if args.novel {
+        debug!("current at : {:?}", page.url);
+        let mut next = Some(page);
+        while let Ok(u) = ret
+            .fetch_next(&mut next.unwrap_or_default(), args.image)
+            .await
+        {
+            tokio::time::sleep(Duration::from_millis(args.delay)).await;
+            debug!("current at : {:?}", u.url);
+            ret.fetch_content(u, args.image).await;
+            next = u.next();
+            all_imgs.push(u.clone());
+        }
+    } else if let Ok(index) = ret.fetch_index(&mut page, args.image).await {
+        if let Ok(links) = ret.fetch_links(index, args.image).await {
+            debug!("Fetched {:?} chapters", links.content.data);
+            tokio::time::sleep(Duration::from_millis(args.delay)).await;
             if args.image {
-                for mut link in &mut links {
-                    tokio::time::sleep(Duration::from_millis(args.delay)).await;
-                    if let Some(images) = ret.fetch_content(&mut link, args.image).await {
-                        tokio::time::sleep(Duration::from_millis(args.delay)).await;
-                        trace!("Gathered {} images", images.len());
-                        all_imgs.extend(images.into_iter());
+                if let Some(chapters) = ret.fetch_content(links, args.image).await {
+                    for mut chapter in chapters {
+                        if let Some(images) = ret.fetch_content(&mut chapter, args.image).await {
+                            debug!("Gathered {} images", images.len());
+                            all_imgs.extend(images);
+                        }
                     }
                 }
-            } else if let Some(images) = ret.fetch_content(links, args.image).await {
-                tokio::time::sleep(Duration::from_millis(args.delay)).await;
-                debug!("Gathered {} chapters", images.len());
-                all_imgs.extend(images.into_iter());
+            } else if let Some(chapters) = ret.fetch_content(links, args.image).await {
+                trace!("Gathered {} chapters", chapters.len());
+                all_imgs.extend(chapters);
             }
         }
     }
     let save_to = args.output_dir.unwrap_or_else(|| PathBuf::from("./"));
     join_all(all_imgs.chunks_mut(5).map(|a| async {
         for p in a {
+            tokio::time::sleep(Duration::from_millis(args.delay + 100)).await;
             ret.fetch(p, &extractor, args.image).await;
             p.save(save_to.as_path()).await.unwrap();
-            tokio::time::sleep(Duration::from_millis(args.delay)).await;
         }
     }))
     .await;
-    debug!("Total {} pages", all_imgs.len());
+    info!("Total {} pages", all_imgs.len());
 
     if args.epub {
         gen_epub_for(save_to);
@@ -121,7 +135,7 @@ pub fn gen_epub_for(pb: PathBuf) {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open(&pb.join("book.epub"))
+            .open(pb.join("book.epub"))
             .unwrap();
         let mut book = EpubBuilder::new(ZipLibrary::new().unwrap()).unwrap();
         book.metadata("author", " ")
@@ -134,7 +148,7 @@ pub fn gen_epub_for(pb: PathBuf) {
         let mut img_tags = vec![];
         dir.flatten().for_each(|f| {
             if f.path().extension().unwrap() != "epub" {
-                let image = OpenOptions::new().read(true).open(&f.path()).unwrap();
+                let image = OpenOptions::new().read(true).open(f.path()).unwrap();
                 let mut img_path = OsString::from(""); //
                 img_path.push(f.path().file_name().unwrap());
                 debug!("{:?}", &img_path);

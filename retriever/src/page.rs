@@ -1,4 +1,5 @@
 use crate::{extractor::Extractor, Index, Links, Next, Title};
+#[allow(unused_imports)]
 use log::{debug, info, trace};
 use reqwest::{
     header::{HeaderValue, REFERER},
@@ -36,7 +37,7 @@ pub enum ContentType {
     Image(Vec<u8>),
     Chapter(Vec<ContentType>),
     Images(Vec<String>, Option<String>),
-    Chapters(Vec<String>, Option<String>),
+    Chapters(Vec<String>),
     #[default]
     Empty,
 }
@@ -75,7 +76,7 @@ impl Page {
             .build()
             .unwrap_or_else(|_| panic!("Failed to build request for: {}", &self.url));
         let page = client
-            .execute(req.try_clone().unwrap())
+            .execute(req.try_clone().expect("No streaming sources allowed"))
             .await
             .expect("Failed to unwrap response");
         self.last = Some(OffsetDateTime::now_utc());
@@ -105,7 +106,7 @@ impl Page {
         trace!("next: {:?}", &self.content.next);
         self.content.links = extractor.get_links(self).await;
         trace!("links: {:?}", &self.content.links.as_ref().map(|l| l.len()));
-        trace!("links: {:?}", &self.content.links.as_ref().map(|l| &l[..2]));
+        trace!("links: {:?}", &self.content.links.as_ref().map(|l| &l[..]));
         self.content.data = if visual {
             extractor.get_images(self).await
         } else {
@@ -135,7 +136,7 @@ impl Page {
             .skip_while(|s| s.is_empty())
             .nth(1)
             .unwrap();
-        debug!("url final segment is: {:?}", &res);
+        trace!("url final segment is: {:?}", &res);
         res
     }
 
@@ -162,7 +163,7 @@ impl Page {
 
     pub async fn save(&self, pb: &Path) -> io::Result<()> {
         let final_path = pb.join(self.filename().as_deref().unwrap_or_else(|| self.chapter()));
-        debug!("base path {:?}", &final_path);
+        trace!("base path {:?}", &final_path);
         self.content.save(&final_path).await
     }
 
@@ -189,7 +190,7 @@ impl Content {
                 .as_ref()
                 .unwrap_or(&Uuid::new_v5(&Uuid::NAMESPACE_OID, cnt).to_string())
                 .to_owned();
-            debug!("generated new name: {}", res);
+            trace!("generated new name: {}", res);
             res
         };
         trace!("data is: {:?}", &self.data);
@@ -225,10 +226,11 @@ impl Content {
                     .map(|(a, _)| a)
                     .collect::<String>()
                     .replace('-', "_");
+                trace!("string: {:?}", &f);
                 filename.push(&f);
                 let mut pb = pb.to_path_buf();
                 pb.set_file_name(filename);
-                debug!("final image path: {:?}", &pb);
+                trace!("final image path: {:?}", &pb);
                 write(pb, data).await?;
             }
             _ => (),
@@ -267,19 +269,14 @@ impl ContentType {
     }
 
     pub fn to_pages(&self) -> Option<Vec<Page>> {
-        fn convert(input: &[String], host: &Option<String>) -> Vec<Page> {
-            debug!("host was: {:?}", host);
+        fn convert(input: &[String]) -> Vec<Page> {
+            trace!("input was: {:?}", input);
             input
                 .iter()
-                .zip(std::iter::repeat(host))
-                .filter_map(|(p, h)| {
-                    let pa = (h
-                        .as_ref()
-                        .map(|s| s.clone() + p)
-                        .unwrap_or_else(|| p.clone()))
-                    .parse()
-                    .ok();
-                    pa.map(|mut q: Page| {
+                .filter_map(|p| {
+                    let pp = Page::try_from(p).ok();
+                    trace!("{:?}", &pp);
+                    pp.map(|mut q| {
                         q.content.name = q.filename();
                         q
                     })
@@ -290,7 +287,7 @@ impl ContentType {
             ContentType::Images(urls, referer) => {
                 let referer = referer.as_ref().map(|r| r.try_into().unwrap());
                 Some(
-                    convert(urls, &None)
+                    convert(urls)
                         .into_iter()
                         .map(|mut p| {
                             p.referer = referer.clone();
@@ -304,7 +301,7 @@ impl ContentType {
                         .collect(),
                 )
             }
-            ContentType::Chapters(urls, host) => Some(convert(urls, host)),
+            ContentType::Chapters(urls) => Some(convert(urls)),
             _ => None,
         }
     }

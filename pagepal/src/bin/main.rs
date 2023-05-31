@@ -3,8 +3,9 @@ use pagepal::App;
 use simple_logger::SimpleLogger;
 
 pub fn main() -> iced::Result {
-    SimpleLogger::new().env().init().unwrap();
-    App::run(Settings {
+	std::env::set_var("RUST_LOG", "warn,retriever=debug");
+	env_logger::init();
+	App::run(Settings {
         antialiasing: true,
         exit_on_close_request: true,
         window: WSettings {

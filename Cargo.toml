@@ -1,5 +1,33 @@
 [workspace]
+# "pagepal",
+members = ["retriever", "bibliotheca", "storage"]
 resolver = "2"
 
-members = ["retriever", "bibliotheca", "storage"]
-# "pagepal",
+[workspace.dependencies]
+futures = "0.3.28"
+rand = "0.8.5"
+rayon = "1.7.0"
+time = "0.3.21"
+
+[workspace.dependencies.env_logger]
+default-features = true # colorized
+version = "0.10.0" 
+[workspace.dependencies.dashmap]
+features = ["rayon"]
+version = "5.4.0"
+[workspace.dependencies.log]
+features = ["release_max_level_off"]
+version = "0.4.18"
+[workspace.dependencies.reqwest]
+features = ["stream", "cookies", "gzip"]
+version = "0.11.18"
+[workspace.dependencies.serde]
+features = ["derive"]
+version = "1.0.163"
+[workspace.dependencies.tokio]
+default-features = false
+features = ["fs", "time", "net", "macros", "rt-multi-thread"]
+version = "1.28.2"
+[workspace.dependencies.url]
+features = ["serde"]
+version = "2.3.1"
