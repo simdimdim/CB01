@@ -9,15 +9,15 @@ version = "0.1.0"
 # cached = "0.40.0"
 # lol_html = "0.3.1"
 # static_init = "1.0.3"
-epub-builder = "0.5.0"
+epub-builder = "0.7.4"
 select = "0.6.0"
 
 [dependencies.clap]
 features = ["derive"]
-version = "4.3.1"
+version = "4.5.23"
 [dependencies.uuid]
 features = ["v5"]
-version = "1.3.3"
+version = "1.11.0"
 [dependencies.dashmap]
 workspace = true
 [dependencies.env_logger]
