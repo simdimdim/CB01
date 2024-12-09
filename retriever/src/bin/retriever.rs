@@ -78,7 +78,7 @@ async fn main() -> io::Result<()> {
     };
     info!("Delay: {}", &args.delay);
     info!("Looking for {}", if args.image { "images" } else { "text" });
-    let mut page: Page = args.url.try_into().unwrap();
+    let mut page: Page = args.url.into();
     page.set_next(sep);
     let mut all_imgs = vec![];
     if args.novel {
@@ -135,6 +135,7 @@ pub fn gen_epub_for(pb: PathBuf) {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(false)
             .open(pb.join("book.epub"))
             .unwrap();
         let mut book = EpubBuilder::new(ZipLibrary::new().unwrap()).unwrap();

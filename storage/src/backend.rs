@@ -8,26 +8,47 @@ pub use self::file::*;
 pub struct Location(pub url::Url);
 
 pub trait Backend: Sized {
-    type Config;
+    type Config: Identify;
     type State = ();
-    async fn save<T>(&self) -> Result<()>
+    fn save(
+        &self, config: Option<Self::Config>,
+    ) -> impl std::future::Future<Output = Result<()>> + Send
     where
-        Self: Save, {
-        <Self as Save>::save(self).await
+        Self: Save,
+        Self: Send,
+        Self: Sync,
+        <Self as Backend>::Config: std::marker::Send, {
+        async move {
+            <Self as Save>::save(
+                self,
+                <<Self as Backend>::Config as Identify>::id(self).as_str(),
+                config,
+            )
+            .await
+        }
     }
-    async fn load(&mut self, location: url::Url) -> Result<()>
+    fn load(&mut self, location: url::Url) -> impl std::future::Future<Output = Result<()>> + Send
     where
-        Self: Load<Data = Self>, {
-        *self = <Self as Load>::load(self, location).await?;
-        Ok(())
+        Self: Load<Data = Self>,
+        Self: Send, {
+        async {
+            *self = <Self as Load>::load(self, location).await?;
+            Ok(())
+        }
     }
 }
 pub trait Save {
-    async fn save(&self) -> Result<()>;
+    fn save<T: Send>(
+        &self, name: &str, config: T,
+    ) -> impl std::future::Future<Output = Result<()>> + Send;
 }
-pub trait Load {
+pub trait Load: Sized {
     type Data;
-    async fn load(&self, _: url::Url) -> Result<Self::Data>
-    where
-        Self: Sized;
+    fn load(&self, _: url::Url) -> impl std::future::Future<Output = Result<Self::Data>> + Send;
+    fn load_mut(
+        &mut self, _: url::Url,
+    ) -> impl std::future::Future<Output = Result<Self::Data>> + Send;
+}
+pub trait Identify {
+    fn id<T>(obj: T) -> String;
 }
